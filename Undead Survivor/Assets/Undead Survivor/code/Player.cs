@@ -6,6 +6,7 @@ using UnityEngine.InputSystem; // inputSystem 도구를 사용하는 것
 
 public class Player : MonoBehaviour
 {
+    
     public Vector2 inputVec;
     public float speed;
     Rigidbody2D rigid;

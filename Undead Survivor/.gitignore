@@ -47,3 +47,9 @@ Thumbs.db
 # Logs
 *.log
 UpgradeLog*.htm
+
+# VSCode
+.vscode/
+
+# Claude / AI agents
+AGENTS.md

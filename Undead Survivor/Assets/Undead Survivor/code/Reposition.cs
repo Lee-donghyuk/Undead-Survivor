@@ -4,6 +4,14 @@ using UnityEngine;
 
 public class Reposition : MonoBehaviour
 {
+    //모든 Collidar 의 부모
+    Collider2D coll;
+
+    void Awake()
+    {
+        coll = GetComponent<Collider2D>();
+    }
+
     void OnTriggerExit2D(Collider2D collision)
     {
         Debug.Log("Trigger: " + collision.tag); // 추가
@@ -35,7 +43,12 @@ public class Reposition : MonoBehaviour
                 break;
 
             case ("Enemy"):
-
+                if (coll.enabled)
+                {
+                    
+                    //맵 하나의 크기만큼 이동 , 랜덤한 위치에서 등장하도록 벡터 더함
+                    transform.Translate(playerDir * 20 + new Vector3(Random.Range(-3f,3f), Random.Range(-3f,3f), 0));
+                }
                 break;
         }
     }
