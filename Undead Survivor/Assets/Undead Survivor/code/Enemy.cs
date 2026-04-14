@@ -38,6 +38,15 @@ public class Enemy : MonoBehaviour
 
     void LateUpdate()
     {
+        if(!isLive)
+            return;
+
         sproter.flipX = target.position.x < rigid.position.x;
+    }
+
+    void OnEnable() //스크립트가 활성화 될 때, 호출되는 함수
+    {   
+        //enemy에서 스스로 player를 찾아서 target으로 하면 좋음 
+        target = GameManager.instance.player.GetComponent<Rigidbody2D>();
     }
 }
