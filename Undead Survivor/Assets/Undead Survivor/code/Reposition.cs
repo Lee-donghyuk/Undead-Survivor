@@ -47,7 +47,7 @@ public class Reposition : MonoBehaviour
                 {
                     
                     //맵 하나의 크기만큼 이동 , 랜덤한 위치에서 등장하도록 벡터 더함
-                    transform.Translate(playerDir * 20 + new Vector3(Random.Range(-3f,3f), Random.Range(-3f,3f), 0));
+                    transform.Translate(playerDir * 30 + new Vector3(Random.Range(-3f,3f), Random.Range(-3f,3f), 0));
                 }
                 break;
         }

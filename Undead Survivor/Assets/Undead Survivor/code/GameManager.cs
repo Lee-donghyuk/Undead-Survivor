@@ -6,6 +6,8 @@ public class GameManager : MonoBehaviour
 {
     //GameManager 자체를 메모리에 올린다? 
     public static GameManager instance;
+
+    public PoolManager pool;
     public Player player;
 
     void Awake()
