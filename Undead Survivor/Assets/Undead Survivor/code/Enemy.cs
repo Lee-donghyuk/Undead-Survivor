@@ -8,7 +8,7 @@ public class Enemy : MonoBehaviour
     public Rigidbody2D target;
 
 
-    bool isLive = true;
+    bool isLive = true; 
     //몬스터의 생사 판별
 
 
