@@ -4,15 +4,40 @@ using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
-    //GameManager 자체를 메모리에 올린다? 
     public static GameManager instance;
 
     public PoolManager pool;
     public Player player;
 
+    public float gameTime;
+    public float maxGameTime = 20f;
+    public bool isLive;
+
+    // 0~9초: 레벨 0 / 10~20초: 레벨 1
+    public int Level => Mathf.Min(Mathf.FloorToInt(gameTime / 10f), 1);
+
     void Awake()
     {
-        Debug.Log("게임 start");
-        instance = this; //자기 자신을 넣는다 .
+        instance = this;
+    }
+
+    void Start()
+    {
+        isLive = true;
+    }
+
+    void Update()
+    {
+        if (!isLive)
+            return;
+
+        gameTime += Time.deltaTime;
+
+        if (gameTime >= maxGameTime)
+        {
+            gameTime = maxGameTime;
+            isLive = false;
+            Debug.Log("게임 종료");
+        }
     }
 }

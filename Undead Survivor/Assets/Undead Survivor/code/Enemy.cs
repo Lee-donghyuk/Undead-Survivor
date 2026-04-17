@@ -5,22 +5,28 @@ using UnityEngine;
 public class Enemy : MonoBehaviour
 {
     public float speed;
+    public float health;
+    public float maxHealth;
+    public RuntimeAnimatorController[] animCon;
+    
     public Rigidbody2D target;
 
 
-    bool isLive = true; 
+    bool isLive;
     //몬스터의 생사 판별
 
 
     //물리적 이동
     Rigidbody2D rigid;    
-    SpriteRenderer sproter;
+    Animator anim;
+    SpriteRenderer spriter;
 
     // Start is called before the first frame update
     void Awake()
     {
         rigid = GetComponent<Rigidbody2D>();
-        sproter = GetComponent<SpriteRenderer>();
+        anim = GetComponent<Animator>();
+        spriter = GetComponent<SpriteRenderer>();
     }
 
     //적 이동함수
@@ -41,12 +47,22 @@ public class Enemy : MonoBehaviour
         if(!isLive)
             return;
 
-        sproter.flipX = target.position.x < rigid.position.x;
+        spriter.flipX = target.position.x < rigid.position.x;
     }
 
     void OnEnable() //스크립트가 활성화 될 때, 호출되는 함수
     {   
         //enemy에서 스스로 player를 찾아서 target으로 하면 좋음 
         target = GameManager.instance.player.GetComponent<Rigidbody2D>();
+        isLive = true;
+        health = maxHealth;
+    }
+
+    public void Init(Spawner.SpawnData data)
+    {
+        anim.runtimeAnimatorController = animCon[data.spriteType];
+        speed = data.speed;
+        maxHealth = data.health;
+        health = data.health;
     }
 }
