@@ -122,4 +122,4 @@ Enemy.OnTriggerEnter2D(Bullet) → health 감소 → Dead → SetActive(false)
 
 ## 브랜치 컨벤션
 
-현재 활성 브랜치: `feature/enemy` / 메인 브랜치: `main`
+현재 활성 브랜치: `feature/weapon` / 메인 브랜치: `main`
