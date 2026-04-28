@@ -39,12 +39,14 @@ public class Spawner : MonoBehaviour
         enemy.GetComponent<Enemy>().Init(spawnData[level]);
     }
 
-    [System.Serializable]
-    public class SpawnData
-    {
-        public int spriteType;  
-        public float spawnTime;
-        public int health;
-        public float speed;
-    }
+}
+
+//SpawnData 직렬화 = Unity 인스펙터에서 확인할 수 있게 함 
+[System.Serializable]
+public class SpawnData
+{
+    public int spriteType;  
+    public float spawnTime;
+    public int health;
+    public float speed;
 }

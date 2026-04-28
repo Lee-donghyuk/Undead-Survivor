@@ -58,11 +58,36 @@ public class Enemy : MonoBehaviour
         health = maxHealth;
     }
 
-    public void Init(Spawner.SpawnData data)
+
+    public void Init(SpawnData data)
     {
         anim.runtimeAnimatorController = animCon[data.spriteType];
         speed = data.speed;
         maxHealth = data.health;
         health = data.health;
+    }
+
+    // 투사체와 충돌했을 때 호출되는 함수
+    void OnTriggerEnter2D(Collider2D collision)
+    {
+        // Bullet 태그가 아니거나 이미 죽은 경우 무시
+        if (!collision.CompareTag("Bullet") || !isLive)
+            return;
+
+        health -= collision.GetComponent<Bullet>().damege;
+
+        if (health > 0)
+        {
+            // 살아있을 때 - 피격 반응 (추후 애니메이션 추가)
+        }
+        else
+        {
+            Dead();
+        }
+    }
+
+    void Dead()
+    {
+        gameObject.SetActive(false);
     }
 }
