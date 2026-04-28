@@ -53,7 +53,24 @@ SpawnData 필드: spriteType, spawnTime, health, speed
 스폰 흐름: `pool.Get(level)` → 위치 설정 → `enemy.GetComponent<Enemy>().Init(spawnData[level])`
 
 ### 적 행동: `Enemy`
-`FixedUpdate`에서 `Rigidbody2D.MovePosition`으로 플레이어를 추적합니다. `OnEnable`에서 target 설정 및 `health = maxHealth` 초기화. `Init(Spawner.SpawnData data)`로 레벨별 speed/health/animatorController 적용. `animCon[]` 배열로 `spriteType`에 따라 애니메이터 교체.
+`FixedUpdate`에서 `Rigidbody2D.MovePosition`으로 플레이어를 추적합니다. `OnEnable`에서 target 설정 및 `health = maxHealth` 초기화. `Init(SpawnData data)`로 레벨별 speed/health/animatorController 적용. `animCon[]` 배열로 `spriteType`에 따라 애니메이터 교체.
+
+**피격/사망**: `OnTriggerEnter2D`에서 `Bullet` 태그 충돌 감지 → `health -= bullet.damege` → 체력 0 이하 시 `Dead()` 호출 → `SetActive(false)`로 풀 반환.
+
+### 투사체: `Bullet`
+`damege`(데미지)와 `per`(관통 횟수) 필드 보유. `Init(float damege, int per)`로 초기화. `per = -1`은 무한 관통.
+
+### 무기: `Weapon`
+플레이어 자식 오브젝트로 배치. `id`로 무기 종류 구분.
+
+- `Init()`: `id` 기준 speed 설정 후 `Batch()` 호출
+- `Update()`: `id` 기준 `transform.Rotate`로 무기 회전 (id=0: `Vector3.back * speed`)
+- `Batch()`: `count`만큼 총알 배치. 기존 자식은 재배치, 부족분만 풀에서 신규 취득. `Rotate → Translate(Space.World)` 방식으로 균등 각도 배치
+- `LevelUp(float damege, int count)`: 데미지/count 갱신 후 `Batch()` 재호출로 총알 재배치
+
+```
+SpawnData 필드: spriteType, spawnTime, health, speed  (Spawner 외부 독립 클래스)
+```
 
 ### 무한 맵: `Reposition`
 지형 타일과 적에 부착됩니다. `Area` 태그 트리거 콜라이더를 벗어나면 플레이어 근처로 순간이동합니다:
@@ -72,7 +89,36 @@ Spawner.Update → spawnData[level].spawnTime 타이머
   → Enemy.Init(spawnData[level]) → speed/health/animator 적용
 Player 이동 → Reposition.OnTriggerExit2D(Area) → 타일/적 순간이동
 Enemy.FixedUpdate → MovePosition으로 플레이어 Rigidbody2D 추적
+Weapon.Init → Batch → pool.Get(prefabId) → Bullet 자식 배치 → Bullet.Init(damege, per)
+Weapon.Update → Rotate → 자식 Bullet들이 함께 공전
+Enemy.OnTriggerEnter2D(Bullet) → health 감소 → Dead → SetActive(false)
 ```
+
+## 설계 패턴
+
+### 오브젝트 풀링
+`Instantiate/Destroy` 대신 `pool.Get(index)` / `SetActive(false)`로 재사용. 모든 적·투사체에 적용.
+
+### 싱글톤 (`GameManager.instance`)
+전역 접근점. Player, Pool, gameTime, isLive 등을 `GameManager.instance`를 통해 참조.
+
+### `Init()` 패턴
+`OnEnable` 또는 외부 호출로 초기값 주입. `Enemy.Init(SpawnData)`, `Bullet.Init(damege, per)`, `Weapon.Init()` 모두 동일한 구조.
+
+### `id` 기반 switch 분기
+무기 종류를 `id`로 구분해 `Init()`과 `Update()` 모두 같은 switch 구조 사용. 무기 추가 시 case만 늘리면 됨.
+
+### `Rotate → Translate(Space.World)` 배치
+오브젝트 위치를 수식으로 직접 계산하지 않고, 회전 후 이동으로 균등 배치.
+
+### 책임 분리
+사망 처리(`Dead()`), 레벨업(`LevelUp()`) 등 기능별 메서드로 분리해 추후 확장 시 해당 메서드만 수정.
+
+### `isLive` 가드 플래그
+`FixedUpdate`, `LateUpdate`, `OnTriggerEnter2D` 모두 `isLive` 체크로 죽은 상태 방어.
+
+### 자식 재활용 (`Batch`)
+레벨업 시 기존 자식 총알은 재배치, 부족분만 풀에서 신규 취득. `parent` 설정은 새 총알에만 적용.
 
 ## 브랜치 컨벤션
 
