@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Data.SqlTypes;
+using Unity.IO.LowLevel.Unsafe;
 using UnityEngine;
 
 public class Weapon : MonoBehaviour
@@ -10,8 +11,13 @@ public class Weapon : MonoBehaviour
     public float damege;
     public int count;
     public float speed;
-
-    void Start()
+    float timer;
+    Player player;
+    void Awake()
+    {
+        player = GetComponentInParent<Player>();
+    }
+        void Start()
     {
         Init();
     }
@@ -25,6 +31,13 @@ public class Weapon : MonoBehaviour
                 transform.Rotate(Vector3.back * speed *Time.deltaTime);
                 break;
             default:
+                timer +=Time.deltaTime;
+
+                if(timer > speed)
+                {
+                    timer = 0f;
+                    Fire();
+                }
                 break;
         }
 
@@ -52,6 +65,7 @@ public class Weapon : MonoBehaviour
                 Batch();
                 break;
             default:
+                speed = 0.3f;
                 break;
             
         }
@@ -81,7 +95,25 @@ public class Weapon : MonoBehaviour
             //움직이는 건 스페이스 월드 기준이다 
             bullet.Translate(bullet.up * 1.5f, Space.World);
             // 균등 각도로 초기 위치 오프셋 설정 (반지름 1.5)
-            bullet.GetComponent<Bullet>().Init(damege, -1); // -1 is Infinity Per
+            bullet.GetComponent<Bullet>().Init(damege, -1, Vector3.zero); // -1 is Infinity Per
         }
+    }
+
+    void Fire()
+    {
+        // 탐지된 적이 없으면 발사하지 않음
+        if (!player.scanner.nearestTarget)
+            return;
+
+        Vector3 targetPos = player.scanner.nearestTarget.position;
+        // 현재 위치에서 적 방향으로의 단위 벡터 계산
+        Vector3 dir = (targetPos - transform.position).normalized;
+
+        Transform bullet = GameManager.instance.pool.Get(prefabId).transform;
+        bullet.position = transform.position;
+        // Vector3.up(위쪽)을 기준으로 dir 방향으로 총알 회전
+        // FromToRotation: 첫 번째 벡터에서 두 번째 벡터로 회전하는 Quaternion 반환
+        bullet.rotation = Quaternion.FromToRotation(Vector3.up, dir);
+        bullet.GetComponent<Bullet>().Init(damege, count, dir);
     }
 }

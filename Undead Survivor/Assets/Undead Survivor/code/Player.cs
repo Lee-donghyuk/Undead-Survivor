@@ -9,9 +9,11 @@ public class Player : MonoBehaviour
     
     public Vector2 inputVec;
     public float speed;
+    public Scanner scanner;
     Rigidbody2D rigid;
     SpriteRenderer spriter;
     Animator anim;
+
 
     //시작할 때 한번만 실행되는 생명주기 Awake
     void Awake()
@@ -19,6 +21,8 @@ public class Player : MonoBehaviour
         rigid = GetComponent<Rigidbody2D>();
         spriter = GetComponent<SpriteRenderer>();
         anim = GetComponent<Animator>();
+        //직접 만든 스크립트도 컴포넌트와 동일하게 취급됨
+        scanner = GetComponent<Scanner>();
     }
 
 
