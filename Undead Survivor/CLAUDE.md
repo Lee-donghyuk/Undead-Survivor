@@ -32,11 +32,16 @@ GameManager.instance.pool        → PoolManager 참조
 GameManager.instance.gameTime    → 현재 경과 시간
 GameManager.instance.isLive      → 게임 진행 여부
 GameManager.instance.Level       → 현재 레벨 (0 또는 1)
+GameManager.instance.level       → 플레이어 레벨
+GameManager.instance.kill        → 처치 수
+GameManager.instance.exp         → 현재 경험치
 ```
 
 **타이머 시스템**: `maxGameTime = 20f`. `Update`에서 `gameTime`을 누적하고 `maxGameTime` 도달 시 `isLive = false`.
 
-**레벨 시스템**: `gameTime / 10f`로 레벨 계산. 0~9초 = 레벨 0, 10~20초 = 레벨 1. 레벨 인덱스는 `PoolManager.prefabs[]` 인덱스와 1:1 대응.
+**스폰 레벨 시스템**: `gameTime / 10f`로 레벨 계산. 0~9초 = 레벨 0, 10~20초 = 레벨 1. 레벨 인덱스는 `PoolManager.prefabs[]` 인덱스와 1:1 대응.
+
+**플레이어 레벨업 시스템**: `nextExp[] = { 3, 5, 10, 100, ... }`. `GetExp()` 호출 시 `exp++` 후 `nextExp[level]` 도달 시 `level++`, `exp = 0` 리셋.
 
 ### 오브젝트 풀링: `PoolManager`
 정수 인덱스로 관리되는 재사용 가능한 GameObject 관리자. `prefabs[]`는 Inspector에서 할당합니다. `pool.Get(index)`로 비활성 오브젝트를 가져오거나 새로 생성합니다. 오브젝트는 PoolManager GameObject의 자식으로 배치됩니다.
@@ -54,9 +59,17 @@ SpawnData 필드: spriteType, spawnTime, health, speed
 스폰 흐름: `pool.Get(level)` → 위치 설정 → `enemy.GetComponent<Enemy>().Init(spawnData[level])`
 
 ### 적 행동: `Enemy`
-`FixedUpdate`에서 `Rigidbody2D.MovePosition`으로 플레이어를 추적합니다. `OnEnable`에서 target 설정 및 `health = maxHealth` 초기화. `Init(SpawnData data)`로 레벨별 speed/health/animatorController 적용. `animCon[]` 배열로 `spriteType`에 따라 애니메이터 교체.
+`FixedUpdate`에서 `Rigidbody2D.MovePosition`으로 플레이어를 추적합니다. Hit 애니메이션 재생 중에는 이동 중단. `Init(SpawnData data)`로 레벨별 speed/health/animatorController 적용. `animCon[]` 배열로 `spriteType`에 따라 애니메이터 교체.
 
-**피격/사망**: `OnTriggerEnter2D`에서 `Bullet` 태그 충돌 감지 → `health -= bullet.damege` → 체력 0 이하 시 `Dead()` 호출 → `SetActive(false)`로 풀 반환.
+**OnEnable 초기화**: 풀 재사용 시 완전 리셋 — `coll.enabled = true`, `rigid.simulated = true`, `spriter.sortingOrder = 2`, `anim.SetBool("Dead", false)`, `health = maxHealth`.
+
+**피격**: `OnTriggerEnter2D`에서 `Bullet` 태그 충돌 감지 → `health -= bullet.damege` → `KnockBack()` 코루틴 실행 → 생존 시 `anim.SetTrigger("Hit")`.
+
+**넉백**: `KnockBack()` 코루틴 — `WaitForFixedUpdate` 후 플레이어 반대 방향으로 `AddForce(dir * 3, Impulse)`.
+
+**사망**: 체력 0 이하 시 `isLive = false`, `coll.enabled = false`, `rigid.simulated = false`, `spriter.sortingOrder = 1`, `anim.SetBool("Dead", true)` → `kill++`, `GetExp()` 호출. 사망 애니메이션 종료 시 **Animation Event**로 `Dead()` 호출 → `SetActive(false)`로 풀 반환.
+
+**레이어 주의**: Enemy 프리팹은 반드시 **Layer 6 (Enemy)** 이어야 Scanner의 `targetLayer(64)`가 감지할 수 있음.
 
 ### 적 탐지: `Scanner`
 Player 오브젝트에 컴포넌트로 부착. `FixedUpdate`에서 `Physics2D.CircleCastAll`로 `scanRange` 반경 내 `targetLayer` 오브젝트를 매 프레임 탐지. `GetNearest()`로 가장 가까운 적의 `Transform`을 `nearestTarget`에 저장.
@@ -113,7 +126,10 @@ Enemy.FixedUpdate → MovePosition으로 플레이어 Rigidbody2D 추적
 [근접 무기 id=0]
 Weapon.Init → Batch → pool.Get(prefabId) → Bullet 자식 배치 → Bullet.Init(damege, -1, zero)
 Weapon.Update → Rotate → 자식 Bullet들이 함께 공전
-Enemy.OnTriggerEnter2D(Bullet) → health 감소 → Dead → SetActive(false)
+Enemy.OnTriggerEnter2D(Bullet) → health 감소 → KnockBack() → Hit 애니메이션
+  → 체력 0 이하: isLive=false, coll/rigid 비활성화, Dead 애니메이션
+  → Animation Event → Dead() → SetActive(false)
+  → kill++, GetExp() → exp == nextExp[level] 시 level++
 
 [원거리 무기 id=1]
 Scanner.FixedUpdate → CircleCastAll → nearestTarget 갱신
@@ -121,7 +137,7 @@ Weapon.Update → timer 누적 → Fire()
 Fire() → nearestTarget 방향 계산 → pool.Get(prefabId) → Bullet.Init(damege, count, dir)
 Bullet → rigid.velocity로 이동
 Bullet.OnTriggerEnter2D(Enemy) → per-- → per==-1이면 SetActive(false)
-Enemy.OnTriggerEnter2D(Bullet) → health 감소 → Dead → SetActive(false)
+Enemy.OnTriggerEnter2D(Bullet) → health 감소 → (위 사망 흐름과 동일)
 ```
 
 ## 설계 패턴
@@ -152,4 +168,4 @@ Enemy.OnTriggerEnter2D(Bullet) → health 감소 → Dead → SetActive(false)
 
 ## 브랜치 컨벤션
 
-현재 활성 브랜치: `feature/weapon` / 메인 브랜치: `main`
+현재 활성 브랜치: `feature/enemy` / 메인 브랜치: `main`

@@ -17,22 +17,25 @@ public class Enemy : MonoBehaviour
 
 
     //물리적 이동
-    Rigidbody2D rigid;    
+    Rigidbody2D rigid;
+    Collider2D coll;    
     Animator anim;
     SpriteRenderer spriter;
-
+    WaitForFixedUpdate wait; 
     // Start is called before the first frame update
     void Awake()
     {
         rigid = GetComponent<Rigidbody2D>();
+        coll = GetComponent<Collider2D>();
         anim = GetComponent<Animator>();
         spriter = GetComponent<SpriteRenderer>();
+        wait = new WaitForFixedUpdate();
     }
 
     //적 이동함수
     void FixedUpdate()
     {
-        if (!isLive)
+        if (!isLive || anim.GetCurrentAnimatorStateInfo(0).IsName("Hit"))
             return;
 
         //target 과의 위치를 따라가는 것    
@@ -55,6 +58,10 @@ public class Enemy : MonoBehaviour
         //enemy에서 스스로 player를 찾아서 target으로 하면 좋음 
         target = GameManager.instance.player.GetComponent<Rigidbody2D>();
         isLive = true;
+        coll.enabled = true; //collider 컴포넌트 활성화
+        rigid.simulated = true; // 리지드바디 물리적 활성화
+        spriter.sortingOrder = 2;  //inspertor의 enemy 프리펩의 spriter 레이어를 2->1로 변경 
+        anim.SetBool("Dead",false);
         health = maxHealth;
     }
 
@@ -75,15 +82,32 @@ public class Enemy : MonoBehaviour
             return;
 
         health -= collision.GetComponent<Bullet>().damege;
+        StartCoroutine(KnockBack());
 
         if (health > 0)
         {
             // 살아있을 때 - 피격 반응 (추후 애니메이션 추가)
+            anim.SetTrigger("Hit");
         }
         else
         {
-            Dead();
+            isLive = false;
+            coll.enabled = false; //collider 컴포넌트 비활성화
+            rigid.simulated = false; // 리지드바디 물리적 비활성화
+            spriter.sortingOrder = 1;  //inspertor의 enemy 프리펩의 spriter 레이어를 2->1로 변경 
+            anim.SetBool("Dead",true);
+            GameManager.instance.kill++;
+            GameManager.instance.GetExp();
         }
+    }
+
+    //코루틴(Corountine) : 생명 주기와 비동기처럼 실행되는 함수
+    IEnumerator KnockBack()
+    {
+        yield return wait; // 하나의 물리 프레임 딜레이
+        Vector3 playerPos = GameManager.instance.player.transform.position; // 플레이어의 위치
+        Vector3 dirVec = transform.position - playerPos; // 플레이어의 반대 방향
+        rigid.AddForce(dirVec.normalized * 3, ForceMode2D.Impulse); // 반대 방향으로 넉백(힘으로 처리하기 위해 normailized)
     }
 
     void Dead()
