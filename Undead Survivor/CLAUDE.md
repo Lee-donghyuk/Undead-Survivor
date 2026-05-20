@@ -120,17 +120,19 @@ SpawnData 필드: spriteType, spawnTime, health, speed  (Spawner 외부 독립 �
 ```
 ItemType 열거형: Melee, Range, Glove, Shoe, Heal
 
-[Main Info]  itemType, itemId, itemName, itemDesc, itemIcon(Sprite)
+[Main Info]  itemType, itemId, itemName, itemDesc([TextArea] 멀티라인), itemIcon(Sprite)
 [Level Data] baseDamage, baseCount, damages[], counts[]
 [Weapon]     projectile(GameObject) ← PoolManager.prefabs[]와 비교해 prefabId 탐색에 사용
              hand(Sprite)           ← 무기 획득 시 Hand.spriter에 적용할 손 스프라이트
 ```
 
-### 아이템 UI: `Item`
-`Canvas/LevelUp` 하위 아이템 버튼에 부착. `ItemData`를 읽어 UI에 표시하고 클릭 시 무기/장비를 생성/레벨업.
+`itemDesc`는 `[TextArea]` 속성으로 Inspector에서 멀티라인 편집 가능. `string.Format()` 플레이스홀더({0}, {1})로 수치를 동적 삽입.
 
-- `Awake()`: `GetComponentsInChildren<Image>()[1]`로 아이콘 Image 취득 → `data.itemIcon` 적용
-- `LateUpdate()`: `textlevel.text = "Lv." + level`로 레벨 표시 갱신
+### 아이템 UI: `Item`
+`Canvas/LevelUp` 하위 아이템 버튼에 부착. 레벨업 선택 UI 버튼 하나하나를 담당. `ItemData`를 읽어 UI에 표시하고 클릭 시 무기/장비를 생성/레벨업.
+
+- `Awake()`: `GetComponentsInChildren<Image>()[1]`로 아이콘 Image 취득. `texts[0]`=레벨, `texts[1]`=이름, `texts[2]`=설명. 이름은 고정값이므로 Awake에서 한 번만 세팅
+- `OnEnable()`: 패널이 열릴 때마다 호출 — 레벨 표시(`level+1`, 1-based) 및 타입별 설명 텍스트 갱신. `string.Format(data.itemDesc, ...)`으로 수치 동적 삽입 (무기: 데미지%·관통수, 장비: 강화율%)
 - `OnClick()`: Button의 onClick 이벤트에 연결. `level == data.damages.Length`이면 Button `interactable = false`
 
 | ItemType | level==0 | level>0 | level++ |
@@ -253,4 +255,4 @@ Enemy.OnTriggerEnter2D(Bullet) → health 감소 → (위 사망 흐름과 동�
 
 ## 브랜치 컨벤션
 
-현재 활성 브랜치: `feature/weapon-ui` / 메인 브랜치: `main`
+현재 활성 브랜치: `feature/ui` / 메인 브랜치: `main`
