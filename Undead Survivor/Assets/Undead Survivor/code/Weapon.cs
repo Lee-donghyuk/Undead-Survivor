@@ -1,7 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Data.SqlTypes;
-using Unity.IO.LowLevel.Unsafe;
 using UnityEngine;
 
 public class Weapon : MonoBehaviour
@@ -80,9 +78,15 @@ public class Weapon : MonoBehaviour
                 Batch();
                 break;
             default:
-                speed = 1.0f;
+                speed = 0.4f;
                 break;
         }
+
+        //Hand Set: itemType을 int로 캐스팅해 손 배열 인덱스로 사용 (Melee=0, Range=1)
+        Hand hand = player.hands[(int)data.itemType];
+        hand.spriter.sprite = data.hand;    // 무기 스프라이트 교체
+        hand.gameObject.SetActive(true);    // 첫 획득 시 비활성 손 오브젝트 활성화
+
         //브로드 캐스트 메시지
         player.BroadcastMessage("ApplyGear", SendMessageOptions.DontRequireReceiver);
     }

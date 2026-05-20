@@ -94,7 +94,7 @@ Player.scanner.nearestTarget → Weapon의 Fire()에서 발사 방향 계산에 
 ### 무기: `Weapon`
 `Item.OnClick()`에서 동적으로 생성되는 오브젝트. `id`로 무기 종류 구분. `Awake`에서 `GameManager.instance.player`로 Player 참조 획득.
 
-**Init(ItemData data)**: 첫 클릭 시 호출. `id`, `damege`, `count` 초기화. `pool.prefabs[]` 순회로 `prefabId` 자동 탐색. Player 자식으로 배치 후 `BroadcastMessage("ApplyGear", DontRequireReceiver)` 호출 → 기존 Gear 효과 즉시 적용.
+**Init(ItemData data)**: 첫 클릭 시 호출. `id`, `damege`, `count` 초기화. `pool.prefabs[]` 순회로 `prefabId` 자동 탐색. Player 자식으로 배치. **Hand Set**: `player.hands[(int)data.itemType]`으로 해당 손 취득 → 스프라이트 교체 → `SetActive(true)`로 활성화. 이후 `BroadcastMessage("ApplyGear", DontRequireReceiver)` 호출 → 기존 Gear 효과 즉시 적용.
 
 **id=0 근접 무기 (회전형)**
 - `Init()`: `speed = 150` 설정 후 `Batch()` 호출
@@ -123,6 +123,7 @@ ItemType 열거형: Melee, Range, Glove, Shoe, Heal
 [Main Info]  itemType, itemId, itemName, itemDesc, itemIcon(Sprite)
 [Level Data] baseDamage, baseCount, damages[], counts[]
 [Weapon]     projectile(GameObject) ← PoolManager.prefabs[]와 비교해 prefabId 탐색에 사용
+             hand(Sprite)           ← 무기 획득 시 Hand.spriter에 적용할 손 스프라이트
 ```
 
 ### 아이템 UI: `Item`
@@ -163,6 +164,22 @@ ItemType 열거형: Melee, Range, Glove, Shoe, Heal
 
 ### 플레이어: `Player`
 Unity 새 입력 시스템 사용 (`PlayerInput` 컴포넌트의 `OnMove` 콜백). `FixedUpdate`에서 `Rigidbody2D.MovePosition`으로 이동. `inputVec.magnitude`로 애니메이션 구동 (`Speed` 파라미터). `inputVec.x` 부호로 스프라이트 좌우 반전. `Awake`에서 `GetComponent<Scanner>()`로 Scanner 참조 획득.
+
+`public Hand[] hands`: `GetComponentsInChildren<Hand>(true)`로 비활성 포함 수집. `hands[0]` = 왼손(Melee), `hands[1]` = 오른손(Range). Inspector 계층 순서와 반드시 일치해야 함.
+
+### 무기 UI: `Hand`
+Player 자식 오브젝트에 부착. 플레이어 스프라이트 반전 시 무기 UI도 동일하게 반전.
+
+- `isLeft`: true = 근접무기(왼손), false = 원거리무기(오른손)
+- `spriter`: 이 Hand의 SpriteRenderer — `Weapon.Init()`에서 스프라이트 교체
+- `Awake()`: `GetComponentsInParent<SpriteRenderer>()[1]`로 플레이어 SpriteRenderer 취득 ([0]은 Hand 자신)
+- `LateUpdate()`: `player.flipX`를 읽어 방향 반전 처리 — Player.LateUpdate 이후 실행 보장을 위해 LateUpdate 사용
+
+**근접(isLeft=true)**: 회전(`Quaternion.Euler`) + `flipY` + sortingOrder로 방향 표현
+- 정방향 `-35°` / 반전 `-135°`, 반전 시 sortingOrder=4(플레이어 뒤)
+
+**원거리(isLeft=false)**: 위치(`localPosition`) + `flipX` + sortingOrder로 방향 표현
+- 정방향 `(0.35, -0.15)` / 반전 `(-0.15, -0.15)`, 반전 시 sortingOrder=6(플레이어 앞)
 
 ### 데이터 흐름
 
@@ -236,4 +253,4 @@ Enemy.OnTriggerEnter2D(Bullet) → health 감소 → (위 사망 흐름과 동�
 
 ## 브랜치 컨벤션
 
-현재 활성 브랜치: `feature/upgrade` / 메인 브랜치: `main`
+현재 활성 브랜치: `feature/weapon-ui` / 메인 브랜치: `main`

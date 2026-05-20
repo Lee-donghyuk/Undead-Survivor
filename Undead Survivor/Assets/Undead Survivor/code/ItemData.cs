@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
 //커스텀 메뉴 생성하는 속성
@@ -23,5 +22,6 @@ public class ItemData : ScriptableObject
     public int[] counts;
 
     [Header("# Waepon")]
-    public GameObject projectile;     
+    public GameObject projectile;
+    public Sprite hand;     // 무기 획득 시 손 UI에 표시할 스프라이트
 }
