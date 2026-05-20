@@ -39,15 +39,18 @@ GameManager.instance.exp         → 현재 경험치
 
 **타이머 시스템**: `maxGameTime = 20f`. `Update`에서 `gameTime`을 누적하고 `maxGameTime` 도달 시 `isLive = false`.
 
-**스폰 레벨 시스템**: `gameTime / 10f`로 레벨 계산. 0~9초 = 레벨 0, 10~20초 = 레벨 1. 레벨 인덱스는 `PoolManager.prefabs[]` 인덱스와 1:1 대응.
+**스폰 레벨 시스템**: `gameTime / 10f`로 레벨 계산. 0~9초 = 레벨 0, 10~20초 = 레벨 1. 레벨은 `spawnData[]` 인덱스로만 사용되며 `pool.Get()`의 인덱스와는 무관.
 
 **플레이어 레벨업 시스템**: `nextExp[] = { 3, 5, 10, 100, ... }`. `GetExp()` 호출 시 `exp++` 후 `nextExp[level]` 도달 시 `level++`, `exp = 0` 리셋.
 
 ### 오브젝트 풀링: `PoolManager`
 정수 인덱스로 관리되는 재사용 가능한 GameObject 관리자. `prefabs[]`는 Inspector에서 할당합니다. `pool.Get(index)`로 비활성 오브젝트를 가져오거나 새로 생성합니다. 오브젝트는 PoolManager GameObject의 자식으로 배치됩니다.
 
-- 인덱스 0, 1: 적 프리팹 (`Spawner`에서 사용)
-- 인덱스 2+: 총알 프리팹 (`Weapon.prefabId`로 참조). Bullet 0은 근접 회전형, Bullet 1은 원거리 발사형
+- `[0]`: enemy 프리팹 1개. `Spawner`는 항상 `pool.Get(0)`으로 같은 프리팹을 재사용하고, `spawnData[level].spriteType`으로 `animCon[]`을 교체해 외형만 변경
+- `[1]`: bullet0 — 근접 회전형 총알 (`Weapon.prefabId`로 참조)
+- `[2]`: bullet1 — 원거리 발사형 총알 (`Weapon.prefabId`로 참조)
+
+`Weapon.Init(ItemData)`에서 `data.projectile`과 `pool.prefabs[]`를 순회 비교해 `prefabId`를 자동 탐색.
 
 ### 적 스폰: `Spawner`
 `SpawnData[]` 배열(내부 클래스)을 Inspector에서 레벨별로 설정합니다. `Update`에서 `GameManager.instance.gameTime / 10f`로 현재 레벨을 계산하고, `spawnData[level].spawnTime` 간격으로 스폰합니다. `isLive` 체크로 게임 종료 시 스폰 중단.
@@ -56,7 +59,9 @@ GameManager.instance.exp         → 현재 경험치
 SpawnData 필드: spriteType, spawnTime, health, speed
 ```
 
-스폰 흐름: `pool.Get(level)` → 위치 설정 → `enemy.GetComponent<Enemy>().Init(spawnData[level])`
+스폰 흐름: `pool.Get(0)` → 위치 설정 → `enemy.GetComponent<Enemy>().Init(spawnData[level])`
+
+**주의**: `pool.Get()`은 항상 인덱스 0(enemy)을 사용. level은 `spawnData[]` 인덱스로만 쓰이며, `Mathf.Min(..., spawnData.Length - 1)`으로 클램프되어 배열 초과 방지.
 
 ### 적 행동: `Enemy`
 `FixedUpdate`에서 `Rigidbody2D.MovePosition`으로 플레이어를 추적합니다. Hit 애니메이션 재생 중에는 이동 중단. `Init(SpawnData data)`로 레벨별 speed/health/animatorController 적용. `animCon[]` 배열로 `spriteType`에 따라 애니메이터 교체.
@@ -83,27 +88,73 @@ Player.scanner.nearestTarget → Weapon의 Fire()에서 발사 방향 계산에 
 `damege`(데미지)와 `per`(관통 횟수) 필드 보유. `Init(float damege, int per, Vector3 dir)`로 초기화.
 
 - `per = -1`: 무한 관통 (근접 회전 무기). velocity 설정 안 함
-- `per >= 0`: 원거리 무기. `rigid.velocity = dir * 3`으로 이동 시작
+- `per >= 0`: 원거리 무기. `rigid.velocity = dir * 15`으로 이동 시작
 - `OnTriggerEnter2D`: Enemy 충돌 시 `per--`. `per == -1`이 되면 velocity=0 후 `SetActive(false)`로 풀 반환
 
 ### 무기: `Weapon`
-플레이어 자식 오브젝트로 배치. `id`로 무기 종류 구분. `Awake`에서 `GetComponentInParent<Player>()`로 Player 참조 획득.
+`Item.OnClick()`에서 동적으로 생성되는 오브젝트. `id`로 무기 종류 구분. `Awake`에서 `GameManager.instance.player`로 Player 참조 획득.
+
+**Init(ItemData data)**: 첫 클릭 시 호출. `id`, `damege`, `count` 초기화. `pool.prefabs[]` 순회로 `prefabId` 자동 탐색. Player 자식으로 배치 후 `BroadcastMessage("ApplyGear", DontRequireReceiver)` 호출 → 기존 Gear 효과 즉시 적용.
 
 **id=0 근접 무기 (회전형)**
-- `Init()`: `speed = -150` 설정 후 `Batch()` 호출
+- `Init()`: `speed = 150` 설정 후 `Batch()` 호출
 - `Update()`: `transform.Rotate(Vector3.back * speed)`로 공전
 - `Batch()`: `count`만큼 균등 각도로 총알 배치. `Bullet.Init(damege, -1, Vector3.zero)`
-- `LevelUp()`: damege/count 갱신 후 `Batch()` 재호출
+- `LevelUp(damege, count)`: `this.count += count`로 누적, `Batch()` 재호출 후 `BroadcastMessage("ApplyGear")`
 
 **id=1 이상 원거리 무기 (발사형)**
-- `Init()`: `speed = 0.3f` (발사 간격, 초 단위)
+- `Init()`: `speed = 1.0f` (발사 간격, 초 단위)
 - `Update()`: `timer` 누적 → `speed` 초과 시 `Fire()` 호출
 - `Fire()`: `scanner.nearestTarget` 방향 계산 → `pool.Get(prefabId)`로 총알 취득 → `Quaternion.FromToRotation`으로 회전 → `Bullet.Init(damege, count, dir)`
-- `count`: 관통 횟수 (Inspector 설정, 0이면 관통 없음)
+- `count`: 관통 횟수, `LevelUp` 시 `+=`로 누적
+
+**주의**: `Awake`에서 `GetComponentInParent<Player>()` 대신 `GameManager.instance.player`를 사용. `Item.OnClick()`이 `new GameObject()`로 생성할 때 아직 Player 자식이 아니므로 부모 탐색이 null을 반환하기 때문.
 
 ```
 SpawnData 필드: spriteType, spawnTime, health, speed  (Spawner 외부 독립 클래스)
 ```
+
+### 아이템 데이터: `ItemData`
+`ScriptableObject` 기반 아이템 정의. `Assets/Undead Survivor/Data/`에 `.asset` 파일로 저장.
+
+```
+ItemType 열거형: Melee, Range, Glove, Shoe, Heal
+
+[Main Info]  itemType, itemId, itemName, itemDesc, itemIcon(Sprite)
+[Level Data] baseDamage, baseCount, damages[], counts[]
+[Weapon]     projectile(GameObject) ← PoolManager.prefabs[]와 비교해 prefabId 탐색에 사용
+```
+
+### 아이템 UI: `Item`
+`Canvas/LevelUp` 하위 아이템 버튼에 부착. `ItemData`를 읽어 UI에 표시하고 클릭 시 무기/장비를 생성/레벨업.
+
+- `Awake()`: `GetComponentsInChildren<Image>()[1]`로 아이콘 Image 취득 → `data.itemIcon` 적용
+- `LateUpdate()`: `textlevel.text = "Lv." + level`로 레벨 표시 갱신
+- `OnClick()`: Button의 onClick 이벤트에 연결. `level == data.damages.Length`이면 Button `interactable = false`
+
+| ItemType | level==0 | level>0 | level++ |
+|---|---|---|---|
+| Melee/Range | Weapon 생성 + `Init(data)` | `LevelUp(nextDamage, counts[level])` | ✓ |
+| Glove/Shoe | Gear 생성 + `init(data)` | `LevelUp(damages[level])` | ✓ |
+| Heal | `GameManager.health = maxHealth` | 동일 (소모품) | ✗ |
+
+**LevelUp 데이터 계산**:
+- `nextDamage = baseDamage + baseDamage * damages[level]`
+- `nextCount = weapon.count + counts[level]` (누적)
+- Heal은 `damages[]`를 비워두면(`Length==0`) 한 번 사용 후 버튼 자동 비활성화
+
+### 장비: `Gear`
+`Item.OnClick()`에서 동적으로 생성. Player 자식으로 배치. `type`(Glove/Shoe)에 따라 플레이어 능력치 강화.
+
+- `init(ItemData data)`: `type = data.itemType`, `rate = data.damages[0]`, `ApplyGear()` 호출
+- `LevelUp(float rate)`: rate 갱신 후 `ApplyGear()` 재호출
+- `ApplyGear()` → type별 분기:
+  - **Glove → `RateUp()`**: Player 하위 모든 `Weapon`의 속도 강화
+    - id=0: `weapon.speed = 150 + 150 * rate` (회전 속도 증가)
+    - 원거리: `weapon.speed = 0.5f * (1f - rate)` (발사 간격 감소, 0.5f 기준으로 빠르게)
+  - **Shoe → `SpeedUp()`**: `player.speed = 3 + 3 * rate` (이동속도 증가)
+
+**Weapon과 연동**: Weapon `Init()`/`LevelUp()` 후 `BroadcastMessage("ApplyGear")` → 새 무기 생성 시 기존 Gear 효과 자동 적용. 수신자 없을 때 에러 방지를 위해 `SendMessageOptions.DontRequireReceiver` 사용.
 
 ### 무한 맵: `Reposition`
 지형 타일과 적에 부착됩니다. `Area` 태그 트리거 콜라이더를 벗어나면 플레이어 근처로 순간이동합니다:
@@ -118,8 +169,8 @@ Unity 새 입력 시스템 사용 (`PlayerInput` 컴포넌트의 `OnMove` 콜백
 ```
 GameManager.Update → gameTime 누적 → Level 계산 → isLive 관리
 Spawner.Update → spawnData[level].spawnTime 타이머
-  → pool.Get(level) → Enemy.OnEnable → target = player
-  → Enemy.Init(spawnData[level]) → speed/health/animator 적용
+  → pool.Get(0) → Enemy.OnEnable → target = player
+  → Enemy.Init(spawnData[level]) → speed/health/spriteType으로 animCon 교체
 Player 이동 → Reposition.OnTriggerExit2D(Area) → 타일/적 순간이동
 Enemy.FixedUpdate → MovePosition으로 플레이어 Rigidbody2D 추적
 
@@ -142,6 +193,20 @@ Enemy.OnTriggerEnter2D(Bullet) → health 감소 → (위 사망 흐름과 동�
 
 ## 설계 패턴
 
+### 전체 아키텍처 요약
+이 프로젝트의 핵심 패턴 조합은 **Data-Driven + Component + Object Pool** 으로, Vampire Survivors 류 게임의 전형적인 구조입니다.
+
+| 패턴 | 적용 위치 | 목적 |
+|---|---|---|
+| Data-Driven Design | `ItemData` (ScriptableObject) | 데이터·로직 분리, 코드 수정 없이 수치 조정 |
+| Object Pool | `PoolManager` | 적·총알 재사용으로 GC 부하 감소 |
+| Singleton | `GameManager.instance` | 전역 접근점 |
+| Component | `Item`, `Weapon`, `Gear` | 단일 책임 분리, Unity 기본 구조 |
+| Message Passing | `BroadcastMessage("ApplyGear")` | Weapon↔Gear 직접 참조 없이 느슨한 결합 |
+| Factory (런타임 생성) | `Item.OnClick()` | `new GameObject() + AddComponent<>()` |
+
+아이템 종류가 늘어날 때 ScriptableObject 에셋만 추가하면 되고, 코드는 `switch(itemType)` case만 늘리면 되는 확장 구조.
+
 ### 오브젝트 풀링
 `Instantiate/Destroy` 대신 `pool.Get(index)` / `SetActive(false)`로 재사용. 모든 적·투사체에 적용.
 
@@ -149,7 +214,10 @@ Enemy.OnTriggerEnter2D(Bullet) → health 감소 → (위 사망 흐름과 동�
 전역 접근점. Player, Pool, gameTime, isLive 등을 `GameManager.instance`를 통해 참조.
 
 ### `Init()` 패턴
-`OnEnable` 또는 외부 호출로 초기값 주입. `Enemy.Init(SpawnData)`, `Bullet.Init(damege, per, dir)`, `Weapon.Init()` 모두 동일한 구조.
+`OnEnable` 또는 외부 호출로 초기값 주입. `Enemy.Init(SpawnData)`, `Bullet.Init(damege, per, dir)`, `Weapon.Init(ItemData)`, `Gear.init(ItemData)` 모두 동일한 구조.
+
+### `BroadcastMessage` 연동
+`Weapon.Init()`/`LevelUp()` 후 `player.BroadcastMessage("ApplyGear", DontRequireReceiver)` 호출. Gear가 있으면 자동으로 효과 재적용, 없으면 무시. 장비-무기 간 결합도를 낮추는 패턴.
 
 ### `id` 기반 switch 분기
 무기 종류를 `id`로 구분해 `Init()`과 `Update()` 모두 같은 switch 구조 사용. 무기 추가 시 case만 늘리면 됨.
@@ -168,4 +236,4 @@ Enemy.OnTriggerEnter2D(Bullet) → health 감소 → (위 사망 흐름과 동�
 
 ## 브랜치 컨벤션
 
-현재 활성 브랜치: `feature/enemy` / 메인 브랜치: `main`
+현재 활성 브랜치: `feature/upgrade` / 메인 브랜치: `main`

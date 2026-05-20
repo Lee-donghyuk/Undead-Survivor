@@ -25,7 +25,7 @@ public class Bullet : MonoBehaviour
         if (per > -1)
         {
             //총알이 날라가는 속도
-            rigid.velocity = dir*3;
+            rigid.velocity = dir*15;
         }
     }
 
