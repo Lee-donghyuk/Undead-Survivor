@@ -15,17 +15,11 @@ public class Weapon : MonoBehaviour
     Player player;
     void Awake()
     {
-        player = GetComponentInParent<Player>();
+        player = GameManager.instance.player;
     }
-        void Start()
-    {
-        Init();
-    }
-
-        // Update is called once per frame
     void Update()
     {
-             switch (id)
+            switch (id)
         {
             case 0:
                 transform.Rotate(Vector3.back * speed *Time.deltaTime);
@@ -51,24 +45,46 @@ public class Weapon : MonoBehaviour
     public void LevelUp(float damege, int count)
     {
         this.damege = damege;
-        this.count += count;   
+        this.count += count;
 
         if(id==0)
             Batch();
+
+        player.BroadcastMessage("ApplyGear", SendMessageOptions.DontRequireReceiver);
     }
-    public void Init()
+    public void Init(ItemData data)
     {
+        //Base let 
+        name = "Weapon " + data.itemId;
+        transform.parent = player.transform;
+        transform.localPosition = Vector3.zero; //player를 기준으로 위치를 맞춰야함
+
+        //Property Set
+        id = data.itemId;
+        damege = data.baseDamage;
+        count = data.baseCount;
+
+        for(int index = 0; index < GameManager.instance.pool.prefabs.Length; index++)
+        {
+            if(data.projectile == GameManager.instance.pool.prefabs[index])
+            {
+                prefabId = index;
+                break;
+            }
+        }
+
         switch (id)
         {
             case 0:
-                speed = -150;
+                speed = 150;
                 Batch();
                 break;
             default:
                 speed = 1.0f;
                 break;
-            
         }
+        //브로드 캐스트 메시지
+        player.BroadcastMessage("ApplyGear", SendMessageOptions.DontRequireReceiver);
     }
 
     void Batch()
