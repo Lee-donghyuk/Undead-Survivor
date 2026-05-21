@@ -24,7 +24,7 @@ public class HUD : MonoBehaviour
         {
             case InfoType.Exp: 
                 float curExp = GameManager.instance.exp;
-                float maxExp = GameManager.instance.nextExp[GameManager.instance.level];
+                float maxExp = GameManager.instance.nextExp[Mathf.Min(GameManager.instance.level, GameManager.instance.nextExp.Length-1)];
                 mySilder.value = curExp / maxExp;
                 break;
             case InfoType.Level:  //{0:F0} -> 처음 숫자는 인덱스 순번, 다음은 포캣 형태 F0:소수점 없음을 의미
