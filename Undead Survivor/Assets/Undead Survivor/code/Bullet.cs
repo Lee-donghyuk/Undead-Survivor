@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Data;
 using UnityEngine;
 
 public class Bullet : MonoBehaviour
@@ -22,7 +21,7 @@ public class Bullet : MonoBehaviour
         this.per = per;
 
         // per가 -1이면 근접 무기(회전형) → 이동 불필요
-        if (per > -1)
+        if (per >= 0)
         {
             //총알이 날라가는 속도
             rigid.velocity = dir*15;
@@ -32,16 +31,24 @@ public class Bullet : MonoBehaviour
     void OnTriggerEnter2D(Collider2D collision)
     {
         // Enemy가 아니거나 근접 무기(per == -1)면 관통 처리 불필요
-        if (!collision.CompareTag("Enemy") || per == -1)
+        if (!collision.CompareTag("Enemy") || per == -100)
             return;
 
         per--;
 
         // 관통 횟수 소진 시 풀로 반환 (Destroy 대신 SetActive)
-        if (per == -1)
+        if (per < 0)
         {
             rigid.velocity = Vector2.zero;
             gameObject.SetActive(false);
         }
+    }
+
+    void OnTriggerExit2D(Collider2D collision)
+    {
+        if (!collision.CompareTag("Area") || per == -100)
+            return;
+
+        gameObject.SetActive(false);
     }
 }

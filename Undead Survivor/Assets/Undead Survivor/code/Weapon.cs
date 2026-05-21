@@ -118,7 +118,7 @@ public class Weapon : MonoBehaviour
             //움직이는 건 스페이스 월드 기준이다 
             bullet.Translate(bullet.up * 1.5f, Space.World);
             // 균등 각도로 초기 위치 오프셋 설정 (반지름 1.5)
-            bullet.GetComponent<Bullet>().Init(damege, -1, Vector3.zero); // -1 is Infinity Per
+            bullet.GetComponent<Bullet>().Init(damege, -100, Vector3.zero); // -100 is Infinity Per
             AudioManager.instance.PlaySfx(AudioManager.Sfx.Melee);
         }
     }
