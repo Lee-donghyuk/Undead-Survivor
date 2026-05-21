@@ -49,7 +49,7 @@ public class Player : MonoBehaviour
     {
         if(!GameManager.instance.isLive)
         return;
-        Vector2 nextVec = inputVec * speed * Time.fixedDeltaTime;
+        Vector2 nextVec = inputVec.normalized * speed * Time.fixedDeltaTime;
         // 위치 이동
         rigid.MovePosition(rigid.position + nextVec);
     }
