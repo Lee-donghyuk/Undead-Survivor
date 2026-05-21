@@ -43,15 +43,15 @@ GameManager.instance.exp         → 현재 경험치
 
 **플레이어 레벨업 시스템**: `nextExp[] = { 10, 30, 60, 100, 150, 210, 280, 360, 450, 600 }`. `GetExp()` 호출 시 `exp++` 후 `nextExp[Mathf.Min(level, nextExp.Length-1)]` 도달 시 `level++`, `exp = 0` 리셋. 배열 범위 초과 방지를 위해 Mathf.Min으로 클램프.
 
-**게임 시작**: `public GameStart(int id)` — 캐릭터 선택 버튼 onClick에 연결. `playerId = id` 설정 → Player 활성화 → `uiLevelUp.Select(playerId % 2)`(짝수=Melee, 홀수=Range 시작 무기) → `Resume()`.
+**게임 시작**: `public GameStart(int id)` — 캐릭터 선택 버튼 onClick에 연결. `playerId = id` 설정 → Player 활성화 → `uiLevelUp.Select(playerId % 2)`(짝수=Melee, 홀수=Range 시작 무기) → `Resume()` → `AudioManager.PlayBgm(true)` + `PlaySfx(Select)`.
 
 ```
 Inspector 필드: playerId(int) 추가
 ```
 
 **승패 처리**:
-- `GameOver()`: 코루틴 — `isLive=false` → 0.5초 대기 → `uiResult` 활성화 → `uiResult.Lose()` → `Stop()`
-- `GameVictory()`: 코루틴 — `isLive=false` → `enemyCleaner` 활성화(잔여 적 제거) → 0.5초 대기 → `uiResult` 활성화 → `uiResult.Win()` → `Stop()`
+- `GameOver()`: 코루틴 — `isLive=false` → 0.5초 대기 → `uiResult` 활성화 → `uiResult.Lose()` → `Stop()` → `AudioManager.PlayBgm(false)` + `PlaySfx(Lose)`
+- `GameVictory()`: 코루틴 — `isLive=false` → `enemyCleaner` 활성화(잔여 적 제거) → 0.5초 대기 → `uiResult` 활성화 → `uiResult.Win()` → `Stop()` → `AudioManager.PlayBgm(false)` + `PlaySfx(Win)`
 - `GameRetry()`: `SceneManager.LoadScene(0)`으로 씬 재시작
 - `Update()` 타이머 종료 시 `GameVictory()` 호출. `GetExp()`에 `isLive` 가드 추가(사망 후 경험치 방지)
 
@@ -102,7 +102,46 @@ static 프로퍼티만 보유하는 유틸리티 클래스. `GameManager.instanc
 - `Awake()`: 최초 실행 시 `"MyData"` 키 없으면 모든 업적 `0`으로 초기화
 - `Start()`: `UnlockCharachter()` — PlayerPrefs 읽어 lock/unlock UI 토글
 - `LateUpdate()` → `CheckAchive()`: 매 프레임 조건 체크 → 달성 시 PlayerPrefs `1` 저장 → 알림 표시
-- `NoticeRountine()`: `WaitForSecondsRealtime(5)` 사용 — `Time.timeScale=0`(일시정지) 중에도 5초 후 알림 숨김
+- `NoticeRountine()`: `WaitForSecondsRealtime(5)` 사용 — `Time.timeScale=0`(일시정지) 중에도 5초 후 알림 숨김. 알림 시작 시 `AudioManager.PlaySfx(LevelUp)` 재생
+
+### 오디오: `AudioManager`
+씬에 단독 배치되는 싱글톤. BGM 1채널 + SFX 다중 채널을 관리합니다.
+
+```
+Inspector 필드: bgmClip, bgmVolume, sfxClips[], sfxVolume, channels(기본 16)
+```
+
+**초기화** (`init()`):
+- BGM: `BgmPlayer` 자식 GameObject에 `AudioSource` 추가. `loop=true`, `playOnAwake=false`
+- BGM 효과: `Camera.main.GetComponent<AudioHighPassFilter>()` — 레벨업 UI 표시 시 High-Pass 필터 ON/OFF
+- SFX: `SfxPlayer` 자식 GameObject에 `AudioSource` × `channels`개 추가. `bypassListenerEffects=true`(BGM 필터 영향 차단)
+
+**`Sfx` 열거형** (인덱스 = `sfxClips[]` 배열 위치):
+```
+Dead=0, Hit=1, [Hit변형=2], LevelUp=3, Lose=4, Melee=5, [Melee변형=6], Range=7, Select=8, Win=9
+```
+인덱스 2, 6은 의도적 공백 — `Hit`/`Melee` 재생 시 `Random.Range(0,2)`로 변형 효과음 랜덤 선택.
+**주의**: `sfxClips[]`를 Inspector에서 반드시 이 순서대로 할당해야 함.
+
+**`PlaySfx(Sfx sfx)`**: 채널 순환(`channelIndex`) → 재생 중이지 않은 채널 탐색 → 클립 할당 후 `Play()`
+
+**`PlayBgm(bool)`**: BGM 재생/정지
+
+**`EffectBgm(bool)`**: `AudioHighPassFilter.enabled` 토글 — 레벨업 시 BGM 뭉개지는 효과
+
+**각 이벤트별 SFX 연동**:
+| 이벤트 | SFX |
+|---|---|
+| 게임 시작 | Select |
+| 레벨업 UI 열림 | LevelUp + EffectBgm ON |
+| 레벨업 UI 닫힘 | Select + EffectBgm OFF |
+| 업적 알림 | LevelUp |
+| 적 피격 | Hit (변형 포함) |
+| 적 사망 | Dead (isLive 가드) |
+| 근접 무기 배치 | Melee (변형 포함) |
+| 원거리 무기 발사 | Range |
+| 게임 오버 | Lose + BGM 정지 |
+| 게임 클리어 | Win + BGM 정지 |
 
 ### 결과 UI: `Result`
 `Canvas/Result` 하위에 부착. 게임 종료(승/패) 시 `GameManager`에서 활성화.
@@ -114,8 +153,8 @@ static 프로퍼티만 보유하는 유틸리티 클래스. `GameManager.instanc
 ### 레벨업 UI: `LevelUp`
 `Canvas/LevelUp` RectTransform에 부착. 레벨업 시 아이템 선택 패널을 제어합니다.
 
-- `Show()`: `Next()` 호출 → `rect.localScale = Vector3.one` → `GameManager.instance.Stop()` (게임 일시정지)
-- `Hide()`: `rect.localScale = Vector3.zero` → `GameManager.instance.Resume()` (게임 재개)
+- `Show()`: `Next()` 호출 → `rect.localScale = Vector3.one` → `GameManager.instance.Stop()` → `AudioManager.PlaySfx(LevelUp)` + `EffectBgm(true)` (High-Pass 필터 ON)
+- `Hide()`: `rect.localScale = Vector3.zero` → `GameManager.instance.Resume()` → `AudioManager.PlaySfx(Select)` + `EffectBgm(false)` (High-Pass 필터 OFF)
 - `Select(int index)`: `items[index].OnClick()` 직접 호출 (게임 시작 시 초기 아이템 지급용)
 - `Next()`: 랜덤 3개 아이템 선택 로직
   1. 모든 `items` 비활성화
@@ -129,11 +168,11 @@ static 프로퍼티만 보유하는 유틸리티 클래스. `GameManager.instanc
 
 **OnEnable 초기화**: 풀 재사용 시 완전 리셋 — `coll.enabled = true`, `rigid.simulated = true`, `spriter.sortingOrder = 2`, `anim.SetBool("Dead", false)`, `health = maxHealth`.
 
-**피격**: `OnTriggerEnter2D`에서 `Bullet` 태그 충돌 감지 → `health -= bullet.damege` → `KnockBack()` 코루틴 실행 → 생존 시 `anim.SetTrigger("Hit")`.
+**피격**: `OnTriggerEnter2D`에서 `Bullet` 태그 충돌 감지 → `health -= bullet.damege` → `KnockBack()` 코루틴 실행 → 생존 시 `anim.SetTrigger("Hit")` + `AudioManager.PlaySfx(Hit)`.
 
 **넉백**: `KnockBack()` 코루틴 — `WaitForFixedUpdate` 후 플레이어 반대 방향으로 `AddForce(dir * 3, Impulse)`.
 
-**사망**: 체력 0 이하 시 `isLive = false`, `coll.enabled = false`, `rigid.simulated = false`, `spriter.sortingOrder = 1`, `anim.SetBool("Dead", true)` → `kill++`, `GetExp()` 호출. 사망 애니메이션 종료 시 **Animation Event**로 `Dead()` 호출 → `SetActive(false)`로 풀 반환.
+**사망**: 체력 0 이하 시 `isLive = false`, `coll.enabled = false`, `rigid.simulated = false`, `spriter.sortingOrder = 1`, `anim.SetBool("Dead", true)` → `kill++`, `GetExp()` + `AudioManager.PlaySfx(Dead)` 호출(`isLive` 가드 포함). 사망 애니메이션 종료 시 **Animation Event**로 `Dead()` 호출 → `SetActive(false)`로 풀 반환.
 
 **isLive 가드**: `FixedUpdate`, `LateUpdate` 첫 줄에 `if(!GameManager.instance.isLive) return;` — 레벨업 일시정지 중 적 이동/렌더 중단.
 
@@ -163,13 +202,13 @@ Player.scanner.nearestTarget → Weapon의 Fire()에서 발사 방향 계산에 
 **id=0 근접 무기 (회전형)**
 - `Init()`: `speed = 150` 설정 후 `Batch()` 호출
 - `Update()`: `transform.Rotate(Vector3.back * speed)`로 공전
-- `Batch()`: `count`만큼 균등 각도로 총알 배치. `Bullet.Init(damege, -100, Vector3.zero)` (sentinel -100 = 무한 관통)
+- `Batch()`: `count`만큼 균등 각도로 총알 배치. `Bullet.Init(damege, -100, Vector3.zero)` (sentinel -100 = 무한 관통) + `AudioManager.PlaySfx(Melee)`
 - `LevelUp(damege, count)`: `this.count += count`로 누적, `Batch()` 재호출 후 `BroadcastMessage("ApplyGear")`
 
 **id=1 이상 원거리 무기 (발사형)**
 - `Init()`: `speed = 1.0f` (발사 간격, 초 단위)
 - `Update()`: `timer` 누적 → `speed` 초과 시 `Fire()` 호출
-- `Fire()`: `scanner.nearestTarget` 방향 계산 → `pool.Get(prefabId)`로 총알 취득 → `Quaternion.FromToRotation`으로 회전 → `Bullet.Init(damege, count, dir)`
+- `Fire()`: `scanner.nearestTarget` 방향 계산 → `pool.Get(prefabId)`로 총알 취득 → `Quaternion.FromToRotation`으로 회전 → `Bullet.Init(damege, count, dir)` + `AudioManager.PlaySfx(Range)`
 - `count`: 관통 횟수, `LevelUp` 시 `+=`로 누적
 
 **주의**: `Awake`에서 `GetComponentInParent<Player>()` 대신 `GameManager.instance.player`를 사용. `Item.OnClick()`이 `new GameObject()`로 생성할 때 아직 Player 자식이 아니므로 부모 탐색이 null을 반환하기 때문.
@@ -225,11 +264,11 @@ ItemType 열거형: Melee, Range, Glove, Shoe, Heal
 
 ### 무한 맵: `Reposition`
 지형 타일과 적에 부착됩니다. `Area` 태그 트리거 콜라이더를 벗어나면 플레이어 근처로 순간이동합니다:
-- `Ground` 태그: 주요 축 방향으로 타일 재배치 (+40 유닛)
-- `Enemy` 태그: 랜덤 오프셋과 함께 플레이어 방향으로 재배치 (+30 유닛)
+- `Ground` 태그: 플레이어와 타일의 **실제 위치 차이**로 방향 계산 → 주요 축 방향으로 +40 유닛 재배치. (구 방식: `player.inputVec` 기반 — 플레이어가 정지 중이면 방향이 잘못될 수 있어 변경)
+- `Enemy` 태그: `dist = playerPos - myPos` 벡터 계산 → `ran + dist * 2`로 플레이어 반대편에 재배치. 랜덤 오프셋 `(-3~3, -3~3)` 추가. (구 방식: `playerDir * 30` 사용)
 
 ### 플레이어: `Player`
-Unity 새 입력 시스템 사용. `OnMove(InputValue value)`로 `inputVec` 갱신 — `PlayerInput` 컴포넌트가 Player에 부착되고 Behavior가 **Send Messages**여야 자동 호출됨. `FixedUpdate`에서 `inputVec * speed * Time.fixedDeltaTime`으로 이동. `inputVec.magnitude`로 애니메이션 구동 (`Speed` 파라미터). `inputVec.x` 부호로 스프라이트 좌우 반전. `Awake`에서 `GetComponent<Scanner>()`로 Scanner 참조 획득.
+Unity 새 입력 시스템 사용. `OnMove(InputValue value)`로 `inputVec` 갱신 — `PlayerInput` 컴포넌트가 Player에 부착되고 Behavior가 **Send Messages**여야 자동 호출됨. `FixedUpdate`에서 `inputVec.normalized * speed * Time.fixedDeltaTime`으로 이동 — **normalized 필수**: 대각선 입력 시 magnitude ~1.414로 속도 41% 증가 방지. `inputVec.magnitude`로 애니메이션 구동 (`Speed` 파라미터). `inputVec.x` 부호로 스프라이트 좌우 반전. `Awake`에서 `GetComponent<Scanner>()`로 Scanner 참조 획득.
 
 **isLive 가드**: `Update`, `FixedUpdate`, `LateUpdate` 모두 `GameManager.instance.isLive` 체크 — 레벨업 일시정지 중 입력·이동·애니메이션 중단.
 
@@ -291,7 +330,7 @@ Enemy.OnTriggerEnter2D(Bullet) → health 감소 → (위 사망 흐름과 동�
 |---|---|---|
 | Data-Driven Design | `ItemData` (ScriptableObject) | 데이터·로직 분리, 코드 수정 없이 수치 조정 |
 | Object Pool | `PoolManager` | 적·총알 재사용으로 GC 부하 감소 |
-| Singleton | `GameManager.instance` | 전역 접근점 |
+| Singleton | `GameManager.instance`, `AudioManager.instance` | 전역 접근점 |
 | Component | `Item`, `Weapon`, `Gear` | 단일 책임 분리, Unity 기본 구조 |
 | Message Passing | `BroadcastMessage("ApplyGear")` | Weapon↔Gear 직접 참조 없이 느슨한 결합 |
 | Factory (런타임 생성) | `Item.OnClick()` | `new GameObject() + AddComponent<>()` |
