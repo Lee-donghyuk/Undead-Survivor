@@ -11,6 +11,7 @@ public class GameManager : MonoBehaviour
     public Player player;
     public LevelUp uiLevelUp;
     [Header("#Game Control")]
+    public bool isLive;
     public float gameTime;
     public float maxGameTime = 20f;
     [Header("#Player Info")]
@@ -22,7 +23,6 @@ public class GameManager : MonoBehaviour
     public int[] nextExp = { 10, 30, 60, 100, 150, 210, 280, 360, 450, 600};
 
 
-    public bool isLive;
 
     // 0~9초: 레벨 0 / 10~20초: 레벨 1
     public int Level => Mathf.Min(Mathf.FloorToInt(gameTime / 10f), 1);
@@ -58,11 +58,24 @@ public class GameManager : MonoBehaviour
     public void GetExp()
     {
         exp++;
-        if(exp == nextExp[level])
+        if(exp == nextExp[Mathf.Min(level, nextExp.Length-1)])
         {
             level++;
             exp = 0;
             uiLevelUp.Show();
         }
+    }
+
+    public void Stop()
+    {
+        isLive = false;
+        Time.timeScale = 0;
+    }
+
+    public void Resume()
+    {
+        
+        isLive = true;
+        Time.timeScale = 1;
     }
 }

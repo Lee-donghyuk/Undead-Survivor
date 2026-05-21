@@ -19,6 +19,9 @@ public class Spawner : MonoBehaviour
 
      void Update()
     {
+        if(!GameManager.instance.isLive)
+            return;
+            
         // timer에 한 프레임마다의 시간을 계속 더함 ㄴ
         timer += Time.deltaTime; 
         level = Mathf.Min(Mathf.FloorToInt(GameManager.instance.gameTime / 10f), spawnData.Length - 1);

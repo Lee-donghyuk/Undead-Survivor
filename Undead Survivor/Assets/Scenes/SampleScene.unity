@@ -6768,6 +6768,7 @@ MonoBehaviour:
   pool: {fileID: 43094484}
   player: {fileID: 1994672756}
   uiLevelUp: {fileID: 1294721045}
+  isLive: 0
   gameTime: 0
   maxGameTime: 30
   health: 0
@@ -6775,8 +6776,7 @@ MonoBehaviour:
   level: 0
   kill: 0
   exp: 0
-  nextExp: 03000000050000000a0000006400000096000000d20000001801000068010000c201000058020000
-  isLive: 0
+  nextExp: 0100000002000000030000000400000005000000060000000700000008000000090000000a000000
 --- !u!4 &756592735
 Transform:
   m_ObjectHideFlags: 0
