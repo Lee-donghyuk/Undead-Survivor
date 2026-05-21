@@ -43,6 +43,8 @@ GameManager.instance.exp         → 현재 경험치
 
 **플레이어 레벨업 시스템**: `nextExp[] = { 10, 30, 60, 100, ... }`. `GetExp()` 호출 시 `exp++` 후 `nextExp[Mathf.Min(level, nextExp.Length-1)]` 도달 시 `level++`, `exp = 0` 리셋. 배열 범위 초과 방지를 위해 Mathf.Min으로 클램프.
 
+**게임 시작**: `Start()` 대신 `public GameStart()` 사용. 씬의 시작 버튼 onClick에 연결. `uiLevelUp.Select(0)`으로 초기 무기 지급 후 `isLive = true`로 게임 시작. HUD(체력·경험치·시간 등) GameObject는 게임 시작 버튼 클릭 전까지 비활성.
+
 **일시정지 시스템**: `Stop()` — `isLive = false` + `Time.timeScale = 0` (레벨업 UI 표시 시 호출). `Resume()` — `isLive = true` + `Time.timeScale = 1` (아이템 선택 후 호출). Player/Enemy/Spawner/Weapon 모두 `GameManager.instance.isLive` 가드로 정지 상태 방어.
 
 ### 오브젝트 풀링: `PoolManager`
