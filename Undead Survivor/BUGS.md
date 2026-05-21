@@ -33,7 +33,5 @@
 - **원인**: 만렙 아이템을 `items[4]`로 단순 대체하므로 중복 처리 없음
 - **수정 방법**: 대체 아이템 활성화 전 이미 활성화됐는지 확인하거나, 랜덤 선택 단계에서 만렙 아이템을 후보에서 제외
 
-### [IMPROVE-002] HUD Health 미구현
-- **파일**: `Assets/Undead Survivor/code/HUD.cs:44`
-- **증상**: `InfoType.Health` case가 비어있어 체력 UI 비표시
-- **수정 방법**: Player 체력 시스템 구현 후 연동 필요
+### ~~[IMPROVE-002] HUD Health 미구현~~ ✅ 해결
+- `curHealth / maxHealth`로 Slider 연동 완료

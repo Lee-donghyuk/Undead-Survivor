@@ -32,12 +32,11 @@ public class GameManager : MonoBehaviour
         instance = this;
     }
 
-    void Start()
+    public void GameStart()
     {
-        isLive = true;
         health = maxHealth;
-        //임시 스크림트(첫번쨰 캐릭터 선택)
-        uiLevelUp.Select(0);
+        uiLevelUp.Select(0);//임시 스크림트(첫번쨰 캐릭터 선택)
+        isLive = true;
     }
 
     void Update()
