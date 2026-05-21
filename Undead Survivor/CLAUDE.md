@@ -37,11 +37,11 @@ GameManager.instance.kill        → 처치 수
 GameManager.instance.exp         → 현재 경험치
 ```
 
-**타이머 시스템**: `maxGameTime = 20f`. `Update`에서 `gameTime`을 누적하고 `maxGameTime` 도달 시 `isLive = false`.
+**타이머 시스템**: `maxGameTime = 300f` (5분). `Update`에서 `gameTime`을 누적하고 `maxGameTime` 도달 시 `isLive = false`.
 
-**스폰 레벨 시스템**: `gameTime / 10f`로 레벨 계산. 0~9초 = 레벨 0, 10~20초 = 레벨 1. 레벨은 `spawnData[]` 인덱스로만 사용되며 `pool.Get()`의 인덱스와는 무관.
+**스폰 레벨 시스템**: `Spawner.levelTime = maxGameTime / spawnData.Length`로 구간 자동 계산. `gameTime / levelTime`으로 레벨 결정 — spawnData 개수를 늘리면 레벨 구간이 균등 분배됨. 레벨은 `spawnData[]` 인덱스로만 사용되며 `pool.Get()`의 인덱스와는 무관.
 
-**플레이어 레벨업 시스템**: `nextExp[] = { 5, 10, 30, 60, 100, 150, 210, 280, 360, 450 }`. `GetExp()` 호출 시 `exp++` 후 `nextExp[Mathf.Min(level, nextExp.Length-1)]` 도달 시 `level++`, `exp = 0` 리셋. 배열 범위 초과 방지를 위해 Mathf.Min으로 클램프.
+**플레이어 레벨업 시스템**: `nextExp[] = { 10, 30, 60, 100, 150, 210, 280, 360, 450, 600 }`. `GetExp()` 호출 시 `exp++` 후 `nextExp[Mathf.Min(level, nextExp.Length-1)]` 도달 시 `level++`, `exp = 0` 리셋. 배열 범위 초과 방지를 위해 Mathf.Min으로 클램프.
 
 **게임 시작**: `public GameStart(int id)` — 캐릭터 선택 버튼 onClick에 연결. `playerId = id` 설정 → Player 활성화 → `uiLevelUp.Select(playerId % 2)`(짝수=Melee, 홀수=Range 시작 무기) → `Resume()` → `AudioManager.PlayBgm(true)` + `PlaySfx(Select)`.
 
@@ -71,7 +71,7 @@ Inspector 필드 추가: uiResult(Result), enemyCleaner(GameObject)
 `Weapon.Init(ItemData)`에서 `data.projectile`과 `pool.prefabs[]`를 순회 비교해 `prefabId`를 자동 탐색.
 
 ### 적 스폰: `Spawner`
-`SpawnData[]` 배열(내부 클래스)을 Inspector에서 레벨별로 설정합니다. `Update`에서 `GameManager.instance.gameTime / 10f`로 현재 레벨을 계산하고, `spawnData[level].spawnTime` 간격으로 스폰합니다. `isLive` 체크로 게임 종료 시 스폰 중단.
+`SpawnData[]` 배열(내부 클래스)을 Inspector에서 레벨별로 설정합니다. `Awake()`에서 `levelTime = maxGameTime / spawnData.Length`로 레벨 구간을 자동 계산. `Update`에서 `gameTime / levelTime`으로 현재 레벨을 계산하고, `spawnData[level].spawnTime` 간격으로 스폰합니다. `isLive` 체크로 게임 종료 시 스폰 중단.
 
 ```
 SpawnData 필드: spriteType, spawnTime, health, speed
