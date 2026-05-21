@@ -30,15 +30,19 @@ public class Player : MonoBehaviour
 
 
 
-    //void update()
-    //{
-    //    inputVec.x = Input.GetAxisRaw("Horizontal");
-    //    inputVec.y = Input.GetAxisRaw("Vertical");
-    //}
+    void Update()
+    {
+        if(!GameManager.instance.isLive)
+        return;
+        inputVec.x = Input.GetAxisRaw("Horizontal");
+        inputVec.y = Input.GetAxisRaw("Vertical");
+    }
     //프레임이 종료 되기 전에 실행되는 생명주기함수
 
     void FixedUpdate()
     {
+        if(!GameManager.instance.isLive)
+        return;
         Vector2 nextVec = inputVec * speed * Time.fixedDeltaTime;
         // 위치 이동
         rigid.MovePosition(rigid.position + nextVec);
@@ -52,6 +56,8 @@ public class Player : MonoBehaviour
 
     void LateUpdate()
     {
+        if(!GameManager.instance.isLive)
+        return;
         // anim 의 float 파라미터 값을 Set 시킴 
         //파라미터 이름 Speed , inputVec의 크기 값으로 대입
         anim.SetFloat("Speed", inputVec.magnitude);

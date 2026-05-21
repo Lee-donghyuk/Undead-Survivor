@@ -41,7 +41,9 @@ GameManager.instance.exp         → 현재 경험치
 
 **스폰 레벨 시스템**: `gameTime / 10f`로 레벨 계산. 0~9초 = 레벨 0, 10~20초 = 레벨 1. 레벨은 `spawnData[]` 인덱스로만 사용되며 `pool.Get()`의 인덱스와는 무관.
 
-**플레이어 레벨업 시스템**: `nextExp[] = { 3, 5, 10, 100, ... }`. `GetExp()` 호출 시 `exp++` 후 `nextExp[level]` 도달 시 `level++`, `exp = 0` 리셋.
+**플레이어 레벨업 시스템**: `nextExp[] = { 10, 30, 60, 100, ... }`. `GetExp()` 호출 시 `exp++` 후 `nextExp[Mathf.Min(level, nextExp.Length-1)]` 도달 시 `level++`, `exp = 0` 리셋. 배열 범위 초과 방지를 위해 Mathf.Min으로 클램프.
+
+**일시정지 시스템**: `Stop()` — `isLive = false` + `Time.timeScale = 0` (레벨업 UI 표시 시 호출). `Resume()` — `isLive = true` + `Time.timeScale = 1` (아이템 선택 후 호출). Player/Enemy/Spawner/Weapon 모두 `GameManager.instance.isLive` 가드로 정지 상태 방어.
 
 ### 오브젝트 풀링: `PoolManager`
 정수 인덱스로 관리되는 재사용 가능한 GameObject 관리자. `prefabs[]`는 Inspector에서 할당합니다. `pool.Get(index)`로 비활성 오브젝트를 가져오거나 새로 생성합니다. 오브젝트는 PoolManager GameObject의 자식으로 배치됩니다.
@@ -63,6 +65,19 @@ SpawnData 필드: spriteType, spawnTime, health, speed
 
 **주의**: `pool.Get()`은 항상 인덱스 0(enemy)을 사용. level은 `spawnData[]` 인덱스로만 쓰이며, `Mathf.Min(..., spawnData.Length - 1)`으로 클램프되어 배열 초과 방지.
 
+### 레벨업 UI: `LevelUp`
+`Canvas/LevelUp` RectTransform에 부착. 레벨업 시 아이템 선택 패널을 제어합니다.
+
+- `Show()`: `Next()` 호출 → `rect.localScale = Vector3.one` → `GameManager.instance.Stop()` (게임 일시정지)
+- `Hide()`: `rect.localScale = Vector3.zero` → `GameManager.instance.Resume()` (게임 재개)
+- `Select(int index)`: `items[index].OnClick()` 직접 호출 (게임 시작 시 초기 아이템 지급용)
+- `Next()`: 랜덤 3개 아이템 선택 로직
+  1. 모든 `items` 비활성화
+  2. 중복 없는 랜덤 인덱스 3개 추출 (while 루프로 보장)
+  3. 각 아이템이 만렙(`level == data.damages.Length`)이면 `items[4]`(Heal)로 대체, 아니면 해당 아이템 활성화
+
+**주의**: 만렙 아이템이 여러 개 선택되면 `items[4]`에 `SetActive(true)`가 중복 호출되어 실질적으로 3개보다 적은 선택지가 표시될 수 있음. (BUGS.md IMPROVE-003 참고)
+
 ### 적 행동: `Enemy`
 `FixedUpdate`에서 `Rigidbody2D.MovePosition`으로 플레이어를 추적합니다. Hit 애니메이션 재생 중에는 이동 중단. `Init(SpawnData data)`로 레벨별 speed/health/animatorController 적용. `animCon[]` 배열로 `spriteType`에 따라 애니메이터 교체.
 
@@ -73,6 +88,8 @@ SpawnData 필드: spriteType, spawnTime, health, speed
 **넉백**: `KnockBack()` 코루틴 — `WaitForFixedUpdate` 후 플레이어 반대 방향으로 `AddForce(dir * 3, Impulse)`.
 
 **사망**: 체력 0 이하 시 `isLive = false`, `coll.enabled = false`, `rigid.simulated = false`, `spriter.sortingOrder = 1`, `anim.SetBool("Dead", true)` → `kill++`, `GetExp()` 호출. 사망 애니메이션 종료 시 **Animation Event**로 `Dead()` 호출 → `SetActive(false)`로 풀 반환.
+
+**isLive 가드**: `FixedUpdate`, `LateUpdate` 첫 줄에 `if(!GameManager.instance.isLive) return;` — 레벨업 일시정지 중 적 이동/렌더 중단.
 
 **레이어 주의**: Enemy 프리팹은 반드시 **Layer 6 (Enemy)** 이어야 Scanner의 `targetLayer(64)`가 감지할 수 있음.
 
@@ -165,7 +182,9 @@ ItemType 열거형: Melee, Range, Glove, Shoe, Heal
 - `Enemy` 태그: 랜덤 오프셋과 함께 플레이어 방향으로 재배치 (+30 유닛)
 
 ### 플레이어: `Player`
-Unity 새 입력 시스템 사용 (`PlayerInput` 컴포넌트의 `OnMove` 콜백). `FixedUpdate`에서 `Rigidbody2D.MovePosition`으로 이동. `inputVec.magnitude`로 애니메이션 구동 (`Speed` 파라미터). `inputVec.x` 부호로 스프라이트 좌우 반전. `Awake`에서 `GetComponent<Scanner>()`로 Scanner 참조 획득.
+Unity 새 입력 시스템 사용 (`PlayerInput` 컴포넌트의 `OnMove` 콜백). `Update`에서 `GetAxisRaw`로 `inputVec` 갱신. `FixedUpdate`에서 `Rigidbody2D.MovePosition`으로 이동. `inputVec.magnitude`로 애니메이션 구동 (`Speed` 파라미터). `inputVec.x` 부호로 스프라이트 좌우 반전. `Awake`에서 `GetComponent<Scanner>()`로 Scanner 참조 획득.
+
+**isLive 가드**: `Update`, `FixedUpdate`, `LateUpdate` 모두 `GameManager.instance.isLive` 체크 — 레벨업 일시정지 중 입력·이동·애니메이션 중단.
 
 `public Hand[] hands`: `GetComponentsInChildren<Hand>(true)`로 비활성 포함 수집. `hands[0]` = 왼손(Melee), `hands[1]` = 오른손(Range). Inspector 계층 순서와 반드시 일치해야 함.
 
@@ -255,4 +274,4 @@ Enemy.OnTriggerEnter2D(Bullet) → health 감소 → (위 사망 흐름과 동�
 
 ## 브랜치 컨벤션
 
-현재 활성 브랜치: `feature/ui` / 메인 브랜치: `main`
+현재 활성 브랜치: `feature/levelup` / 메인 브랜치: `main`
