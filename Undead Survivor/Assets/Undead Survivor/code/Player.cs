@@ -11,6 +11,7 @@ public class Player : MonoBehaviour
     public float speed;
     public Scanner scanner;
     public Hand[] hands;    // [0]: 왼손(Melee), [1]: 오른손(Range) — 계층 순서와 일치해야 함
+    public RuntimeAnimatorController[] animCon;
 
     Rigidbody2D rigid;
     SpriteRenderer spriter;
@@ -29,9 +30,13 @@ public class Player : MonoBehaviour
         hands = GetComponentsInChildren<Hand>(true);
     }
 
+    void OnEnable()
+    {
+        speed *= Charactor.Speed;
+        anim.runtimeAnimatorController = animCon[GameManager.instance.playerId];
+    }
 
-
-    void Update()
+        void Update()
     {
         if(!GameManager.instance.isLive)
         return;

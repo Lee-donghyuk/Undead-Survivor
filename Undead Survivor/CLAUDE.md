@@ -43,7 +43,11 @@ GameManager.instance.exp         → 현재 경험치
 
 **플레이어 레벨업 시스템**: `nextExp[] = { 10, 30, 60, 100, ... }`. `GetExp()` 호출 시 `exp++` 후 `nextExp[Mathf.Min(level, nextExp.Length-1)]` 도달 시 `level++`, `exp = 0` 리셋. 배열 범위 초과 방지를 위해 Mathf.Min으로 클램프.
 
-**게임 시작**: `Start()` 대신 `public GameStart()` 사용. 씬의 시작 버튼 onClick에 연결. `uiLevelUp.Select(0)`으로 초기 무기 지급 후 `Resume()`으로 게임 시작. HUD(체력·경험치·시간 등) GameObject는 게임 시작 버튼 클릭 전까지 비활성.
+**게임 시작**: `public GameStart(int id)` — 캐릭터 선택 버튼 onClick에 연결. `playerId = id` 설정 → Player 활성화 → `uiLevelUp.Select(playerId % 2)`(짝수=Melee, 홀수=Range 시작 무기) → `Resume()`.
+
+```
+Inspector 필드: playerId(int) 추가
+```
 
 **승패 처리**:
 - `GameOver()`: 코루틴 — `isLive=false` → 0.5초 대기 → `uiResult` 활성화 → `uiResult.Lose()` → `Stop()`
@@ -76,6 +80,29 @@ SpawnData 필드: spriteType, spawnTime, health, speed
 스폰 흐름: `pool.Get(0)` → 위치 설정 → `enemy.GetComponent<Enemy>().Init(spawnData[level])`
 
 **주의**: `pool.Get()`은 항상 인덱스 0(enemy)을 사용. level은 `spawnData[]` 인덱스로만 쓰이며, `Mathf.Min(..., spawnData.Length - 1)`으로 클램프되어 배열 초과 방지.
+
+### 캐릭터 특성: `Charactor`
+static 프로퍼티만 보유하는 유틸리티 클래스. `GameManager.instance.playerId`를 읽어 캐릭터별 배율 반환.
+
+| playerId | Speed | WeaponSpeed | WeaponRate | Damage | Count |
+|---|---|---|---|---|---|
+| 0 | ×1.1 | ×1.1 | ×1.0 | ×1.0 | +0 |
+| 1 | ×1.0 | ×1.0 | ×0.9 | ×1.0 | +0 |
+| 2 | ×1.0 | ×1.0 | ×1.0 | ×1.2 | +0 |
+| 3 | ×1.0 | ×1.0 | ×1.0 | ×1.0 | +1 |
+
+`Weapon.Init/LevelUp()`, `Gear.RateUp/SpeedUp()`, `Player.OnEnable()`에서 각 배율 참조.
+
+### 업적 관리: `AchiveManager`
+캐릭터 해금 업적을 `PlayerPrefs`로 관리. 씬에 단독 배치.
+
+- `lockCharacter[]` / `unLockCharacter[]`: 잠김/해금 캐릭터 UI 쌍
+- `uiNotice`: 업적 달성 알림 UI (5초 후 자동 숨김)
+- `Achive` 열거형: `UnlockPotato`(처치 10↑), `unlockApple`(게임 클리어)
+- `Awake()`: 최초 실행 시 `"MyData"` 키 없으면 모든 업적 `0`으로 초기화
+- `Start()`: `UnlockCharachter()` — PlayerPrefs 읽어 lock/unlock UI 토글
+- `LateUpdate()` → `CheckAchive()`: 매 프레임 조건 체크 → 달성 시 PlayerPrefs `1` 저장 → 알림 표시
+- `NoticeRountine()`: `WaitForSecondsRealtime(5)` 사용 — `Time.timeScale=0`(일시정지) 중에도 5초 후 알림 숨김
 
 ### 결과 UI: `Result`
 `Canvas/Result` 하위에 부착. 게임 종료(승/패) 시 `GameManager`에서 활성화.
@@ -206,6 +233,10 @@ Unity 새 입력 시스템 사용 (`PlayerInput` 컴포넌트의 `OnMove` 콜백
 **isLive 가드**: `Update`, `FixedUpdate`, `LateUpdate` 모두 `GameManager.instance.isLive` 체크 — 레벨업 일시정지 중 입력·이동·애니메이션 중단.
 
 `public Hand[] hands`: `GetComponentsInChildren<Hand>(true)`로 비활성 포함 수집. `hands[0]` = 왼손(Melee), `hands[1]` = 오른손(Range). Inspector 계층 순서와 반드시 일치해야 함.
+
+**캐릭터 애니메이션**: `public RuntimeAnimatorController[] animCon` — 캐릭터별 애니메이터 배열. `OnEnable()`에서 `animCon[playerId]`로 교체. `Assets/Undead Survivor/Animations/`에 Player, AcPlayer2, AcPlayer3 컨트롤러 저장.
+
+**OnEnable()**: Player 활성화 시 `speed *= Charactor.Speed` 적용 후 애니메이터 교체.
 
 **피격**: `OnCollisionStay2D` — 적과 접촉 중 `Time.deltaTime * 10` 씩 `GameManager.health` 감소 (초당 10 데미지). `health < 0` 시 자식 오브젝트(index 2~, 무기들) 비활성화 → `anim.SetTrigger("Dead")` → `GameManager.instance.GameOver()` 호출.
 
