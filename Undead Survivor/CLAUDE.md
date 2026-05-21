@@ -150,9 +150,10 @@ Player.scanner.nearestTarget → Weapon의 Fire()에서 발사 방향 계산에 
 ### 투사체: `Bullet`
 `damege`(데미지)와 `per`(관통 횟수) 필드 보유. `Init(float damege, int per, Vector3 dir)`로 초기화.
 
-- `per = -1`: 무한 관통 (근접 회전 무기). velocity 설정 안 함
+- `per = -100`: 무한 관통 sentinel (근접 회전 무기). velocity 설정 안 함. `OnTriggerEnter2D`에서 `per == -100`이면 즉시 return. **-1 대신 -100 사용 이유**: 원거리 총알이 관통을 다 소진하면 자연적으로 per가 0→-1로 감소하므로 -1을 sentinel로 쓰면 값이 겹침. -100은 정상 소진 범위와 명확히 분리됨
 - `per >= 0`: 원거리 무기. `rigid.velocity = dir * 15`으로 이동 시작
-- `OnTriggerEnter2D`: Enemy 충돌 시 `per--`. `per == -1`이 되면 velocity=0 후 `SetActive(false)`로 풀 반환
+- `OnTriggerEnter2D`: Enemy 충돌 시 `per--`. `per < 0`이 되면 velocity=0 후 `SetActive(false)`로 풀 반환
+- `OnTriggerExit2D`: `"Area"` 태그 트리거를 벗어날 때 `SetActive(false)`로 풀 반환. 관통력이 높은 원거리 총알이 플레이 영역 밖으로 날아가 씬을 계속 점유하는 문제 방지. 근접 무기(per=-100)는 제외
 
 ### 무기: `Weapon`
 `Item.OnClick()`에서 동적으로 생성되는 오브젝트. `id`로 무기 종류 구분. `Awake`에서 `GameManager.instance.player`로 Player 참조 획득.
@@ -162,7 +163,7 @@ Player.scanner.nearestTarget → Weapon의 Fire()에서 발사 방향 계산에 
 **id=0 근접 무기 (회전형)**
 - `Init()`: `speed = 150` 설정 후 `Batch()` 호출
 - `Update()`: `transform.Rotate(Vector3.back * speed)`로 공전
-- `Batch()`: `count`만큼 균등 각도로 총알 배치. `Bullet.Init(damege, -1, Vector3.zero)`
+- `Batch()`: `count`만큼 균등 각도로 총알 배치. `Bullet.Init(damege, -100, Vector3.zero)` (sentinel -100 = 무한 관통)
 - `LevelUp(damege, count)`: `this.count += count`로 누적, `Batch()` 재호출 후 `BroadcastMessage("ApplyGear")`
 
 **id=1 이상 원거리 무기 (발사형)**
@@ -265,7 +266,7 @@ Player 이동 → Reposition.OnTriggerExit2D(Area) → 타일/적 순간이동
 Enemy.FixedUpdate → MovePosition으로 플레이어 Rigidbody2D 추적
 
 [근접 무기 id=0]
-Weapon.Init → Batch → pool.Get(prefabId) → Bullet 자식 배치 → Bullet.Init(damege, -1, zero)
+Weapon.Init → Batch → pool.Get(prefabId) → Bullet 자식 배치 → Bullet.Init(damege, -100, zero)
 Weapon.Update → Rotate → 자식 Bullet들이 함께 공전
 Enemy.OnTriggerEnter2D(Bullet) → health 감소 → KnockBack() → Hit 애니메이션
   → 체력 0 이하: isLive=false, coll/rigid 비활성화, Dead 애니메이션
