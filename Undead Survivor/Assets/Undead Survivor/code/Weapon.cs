@@ -119,6 +119,7 @@ public class Weapon : MonoBehaviour
             bullet.Translate(bullet.up * 1.5f, Space.World);
             // 균등 각도로 초기 위치 오프셋 설정 (반지름 1.5)
             bullet.GetComponent<Bullet>().Init(damege, -1, Vector3.zero); // -1 is Infinity Per
+            AudioManager.instance.PlaySfx(AudioManager.Sfx.Melee);
         }
     }
 
@@ -138,5 +139,7 @@ public class Weapon : MonoBehaviour
         // FromToRotation: 첫 번째 벡터에서 두 번째 벡터로 회전하는 Quaternion 반환
         bullet.rotation = Quaternion.FromToRotation(Vector3.up, dir);
         bullet.GetComponent<Bullet>().Init(damege, count, dir);
+
+        AudioManager.instance.PlaySfx(AudioManager.Sfx.Range);
     }
 }
