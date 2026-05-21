@@ -43,7 +43,17 @@ GameManager.instance.exp         → 현재 경험치
 
 **플레이어 레벨업 시스템**: `nextExp[] = { 10, 30, 60, 100, ... }`. `GetExp()` 호출 시 `exp++` 후 `nextExp[Mathf.Min(level, nextExp.Length-1)]` 도달 시 `level++`, `exp = 0` 리셋. 배열 범위 초과 방지를 위해 Mathf.Min으로 클램프.
 
-**게임 시작**: `Start()` 대신 `public GameStart()` 사용. 씬의 시작 버튼 onClick에 연결. `uiLevelUp.Select(0)`으로 초기 무기 지급 후 `isLive = true`로 게임 시작. HUD(체력·경험치·시간 등) GameObject는 게임 시작 버튼 클릭 전까지 비활성.
+**게임 시작**: `Start()` 대신 `public GameStart()` 사용. 씬의 시작 버튼 onClick에 연결. `uiLevelUp.Select(0)`으로 초기 무기 지급 후 `Resume()`으로 게임 시작. HUD(체력·경험치·시간 등) GameObject는 게임 시작 버튼 클릭 전까지 비활성.
+
+**승패 처리**:
+- `GameOver()`: 코루틴 — `isLive=false` → 0.5초 대기 → `uiResult` 활성화 → `uiResult.Lose()` → `Stop()`
+- `GameVictory()`: 코루틴 — `isLive=false` → `enemyCleaner` 활성화(잔여 적 제거) → 0.5초 대기 → `uiResult` 활성화 → `uiResult.Win()` → `Stop()`
+- `GameRetry()`: `SceneManager.LoadScene(0)`으로 씬 재시작
+- `Update()` 타이머 종료 시 `GameVictory()` 호출. `GetExp()`에 `isLive` 가드 추가(사망 후 경험치 방지)
+
+```
+Inspector 필드 추가: uiResult(Result), enemyCleaner(GameObject)
+```
 
 **일시정지 시스템**: `Stop()` — `isLive = false` + `Time.timeScale = 0` (레벨업 UI 표시 시 호출). `Resume()` — `isLive = true` + `Time.timeScale = 1` (아이템 선택 후 호출). Player/Enemy/Spawner/Weapon 모두 `GameManager.instance.isLive` 가드로 정지 상태 방어.
 
@@ -66,6 +76,13 @@ SpawnData 필드: spriteType, spawnTime, health, speed
 스폰 흐름: `pool.Get(0)` → 위치 설정 → `enemy.GetComponent<Enemy>().Init(spawnData[level])`
 
 **주의**: `pool.Get()`은 항상 인덱스 0(enemy)을 사용. level은 `spawnData[]` 인덱스로만 쓰이며, `Mathf.Min(..., spawnData.Length - 1)`으로 클램프되어 배열 초과 방지.
+
+### 결과 UI: `Result`
+`Canvas/Result` 하위에 부착. 게임 종료(승/패) 시 `GameManager`에서 활성화.
+
+- `titles[]`: `[0]` = 패배 타이틀 오브젝트, `[1]` = 승리 타이틀 오브젝트
+- `Lose()`: `titles[0].SetActive(true)`
+- `Win()`: `titles[1].SetActive(true)`
 
 ### 레벨업 UI: `LevelUp`
 `Canvas/LevelUp` RectTransform에 부착. 레벨업 시 아이템 선택 패널을 제어합니다.
@@ -190,6 +207,8 @@ Unity 새 입력 시스템 사용 (`PlayerInput` 컴포넌트의 `OnMove` 콜백
 
 `public Hand[] hands`: `GetComponentsInChildren<Hand>(true)`로 비활성 포함 수집. `hands[0]` = 왼손(Melee), `hands[1]` = 오른손(Range). Inspector 계층 순서와 반드시 일치해야 함.
 
+**피격**: `OnCollisionStay2D` — 적과 접촉 중 `Time.deltaTime * 10` 씩 `GameManager.health` 감소 (초당 10 데미지). `health < 0` 시 자식 오브젝트(index 2~, 무기들) 비활성화 → `anim.SetTrigger("Dead")` → `GameManager.instance.GameOver()` 호출.
+
 ### 무기 UI: `Hand`
 Player 자식 오브젝트에 부착. 플레이어 스프라이트 반전 시 무기 UI도 동일하게 반전.
 
@@ -276,4 +295,4 @@ Enemy.OnTriggerEnter2D(Bullet) → health 감소 → (위 사망 흐름과 동�
 
 ## 브랜치 컨벤션
 
-현재 활성 브랜치: `feature/levelup` / 메인 브랜치: `main`
+현재 활성 브랜치: `feature/player` / 메인 브랜치: `main`
