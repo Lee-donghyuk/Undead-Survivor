@@ -229,7 +229,7 @@ ItemType 열거형: Melee, Range, Glove, Shoe, Heal
 - `Enemy` 태그: 랜덤 오프셋과 함께 플레이어 방향으로 재배치 (+30 유닛)
 
 ### 플레이어: `Player`
-Unity 새 입력 시스템 사용 (`PlayerInput` 컴포넌트의 `OnMove` 콜백). `Update`에서 `GetAxisRaw`로 `inputVec` 갱신. `FixedUpdate`에서 `Rigidbody2D.MovePosition`으로 이동. `inputVec.magnitude`로 애니메이션 구동 (`Speed` 파라미터). `inputVec.x` 부호로 스프라이트 좌우 반전. `Awake`에서 `GetComponent<Scanner>()`로 Scanner 참조 획득.
+Unity 새 입력 시스템 사용. `OnMove(InputValue value)`로 `inputVec` 갱신 — `PlayerInput` 컴포넌트가 Player에 부착되고 Behavior가 **Send Messages**여야 자동 호출됨. `FixedUpdate`에서 `inputVec * speed * Time.fixedDeltaTime`으로 이동. `inputVec.magnitude`로 애니메이션 구동 (`Speed` 파라미터). `inputVec.x` 부호로 스프라이트 좌우 반전. `Awake`에서 `GetComponent<Scanner>()`로 Scanner 참조 획득.
 
 **isLive 가드**: `Update`, `FixedUpdate`, `LateUpdate` 모두 `GameManager.instance.isLive` 체크 — 레벨업 일시정지 중 입력·이동·애니메이션 중단.
 

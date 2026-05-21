@@ -40,8 +40,8 @@ public class Player : MonoBehaviour
     {
         if(!GameManager.instance.isLive)
         return;
-        inputVec.x = Input.GetAxisRaw("Horizontal");
-        inputVec.y = Input.GetAxisRaw("Vertical");
+        //inputVec.x = Input.GetAxisRaw("Horizontal");
+        //inputVec.y = Input.GetAxisRaw("Vertical");
     }
     //프레임이 종료 되기 전에 실행되는 생명주기함수
 
@@ -91,4 +91,5 @@ public class Player : MonoBehaviour
             GameManager.instance.GameOver();
         }
     }
+
 }
