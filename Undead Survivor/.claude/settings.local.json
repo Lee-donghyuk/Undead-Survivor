@@ -8,7 +8,13 @@
       "mcp__UnityMCP__execute_code",
       "mcp__UnityMCP__refresh_unity",
       "Bash(git checkout *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git merge *)",
+      "mcp__ide__getDiagnostics",
+      "mcp__UnityMCP__manage_components"
     ]
   }
 }

@@ -9,6 +9,7 @@ public class GameManager : MonoBehaviour
     [Header("#GameObject")]
     public PoolManager pool;
     public Player player;
+    public LevelUp uiLevelUp;
     [Header("#Game Control")]
     public float gameTime;
     public float maxGameTime = 20f;
@@ -35,6 +36,8 @@ public class GameManager : MonoBehaviour
     {
         isLive = true;
         health = maxHealth;
+        //임시 스크림트(첫번쨰 캐릭터 선택)
+        uiLevelUp.Select(0);
     }
 
     void Update()
@@ -59,7 +62,7 @@ public class GameManager : MonoBehaviour
         {
             level++;
             exp = 0;
-
+            uiLevelUp.Show();
         }
     }
 }
