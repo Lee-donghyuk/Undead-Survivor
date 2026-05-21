@@ -94,6 +94,7 @@ public class Enemy : MonoBehaviour
         {
             // 살아있을 때 - 피격 반응 (추후 애니메이션 추가)
             anim.SetTrigger("Hit");
+            AudioManager.instance.PlaySfx(AudioManager.Sfx.Hit);
         }
         else
         {
@@ -104,6 +105,9 @@ public class Enemy : MonoBehaviour
             anim.SetBool("Dead",true);
             GameManager.instance.kill++;
             GameManager.instance.GetExp();
+
+            if(GameManager.instance.isLive)
+                AudioManager.instance.PlaySfx(AudioManager.Sfx.Dead);
         }
     }
 
