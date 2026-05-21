@@ -268,7 +268,7 @@ ItemType 열거형: Melee, Range, Glove, Shoe, Heal
 - `Enemy` 태그: `dist = playerPos - myPos` 벡터 계산 → `ran + dist * 2`로 플레이어 반대편에 재배치. 랜덤 오프셋 `(-3~3, -3~3)` 추가. (구 방식: `playerDir * 30` 사용)
 
 ### 플레이어: `Player`
-Unity 새 입력 시스템 사용 (`PlayerInput` 컴포넌트의 `OnMove` 콜백). `Update`에서 `GetAxisRaw`로 `inputVec` 갱신. `FixedUpdate`에서 `inputVec.normalized * speed * Time.fixedDeltaTime`으로 이동 — **normalized 필수**: 대각선 입력 시 magnitude가 ~1.414가 되어 속도가 41% 빠르게 되는 것을 방지. `inputVec.magnitude`로 애니메이션 구동 (`Speed` 파라미터). `inputVec.x` 부호로 스프라이트 좌우 반전. `Awake`에서 `GetComponent<Scanner>()`로 Scanner 참조 획득.
+Unity 새 입력 시스템 사용. `OnMove(InputValue value)`로 `inputVec` 갱신 — `PlayerInput` 컴포넌트가 Player에 부착되고 Behavior가 **Send Messages**여야 자동 호출됨. `FixedUpdate`에서 `inputVec.normalized * speed * Time.fixedDeltaTime`으로 이동 — **normalized 필수**: 대각선 입력 시 magnitude ~1.414로 속도 41% 증가 방지. `inputVec.magnitude`로 애니메이션 구동 (`Speed` 파라미터). `inputVec.x` 부호로 스프라이트 좌우 반전. `Awake`에서 `GetComponent<Scanner>()`로 Scanner 참조 획득.
 
 **isLive 가드**: `Update`, `FixedUpdate`, `LateUpdate` 모두 `GameManager.instance.isLive` 체크 — 레벨업 일시정지 중 입력·이동·애니메이션 중단.
 
